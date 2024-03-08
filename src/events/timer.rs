@@ -40,14 +40,16 @@ pub async fn check_timer() {
                                         {"name": "User", "value": format!("<@{}>", uid)}
                                     ]
                                 });
+
+                                if let Err(err) = db_clone.delete_timer(id) {
+                                    println!("Failed to delete timer: {:?}", err);
+                                } 
     
                                 if let Err(err) = send_message(&dm_channel.to_string(), &format!("<@{}>", uid), Some(embed)).await {
                                     println!("Failed to send message: {:?}", err);
                                 }
     
-                                if let Err(err) = db_clone.delete_timer(id) {
-                                    println!("Failed to delete timer: {:?}", err);
-                                }  
+                                 
                             });
                         }
                     }
