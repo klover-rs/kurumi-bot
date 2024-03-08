@@ -1,5 +1,5 @@
 use crate::{Context, Error};
-use poise::serenity_prelude as serenity;
+use poise::serenity_prelude::{self as serenity, guild};
 use poise::serenity_prelude::{Error as PoiseError, ModelError};
 
 use serenity::model::id::{UserId, GuildId};
@@ -65,29 +65,33 @@ pub async fn ban(
 )]
 pub async fn unban(
     ctx: Context<'_>,
-    #[description = "user you want to unban?"] user: serenity::User,
+    #[description = "userID you want to unban?"] user: String,
 ) -> Result<(), Error>{
-    let member = get_member(&ctx, ctx.guild_id().unwrap(), user.id).await;
 
-    match member {
-        Some(member) => {
-            match member.unban(&ctx).await {
-                Ok(_) => {
-                    ctx.say(format!("unbanned {}", user.name)).await?;  
-                }
-                Err(PoiseError::Model(ModelError::GuildNotFound)) => {
-                    ctx.say("Member not found").await?;
-                }
-                Err(PoiseError::Model(ModelError::InvalidPermissions(missing_perms))) => {
-                    ctx.say(format!("Missing permissions: {:?}", missing_perms)).await?;
-                }
-                Err(err) => {
-                    println!("Error: {:?}", err);
-                }
-            }
+    let user_id = match user {
+        s if s.parse::<u64>().is_ok() => {
+            s.parse::<u64>().unwrap()
         }
-        None => {
+        _ => {
+            ctx.say("Not a integer").await?;
+            return Ok(())
+        }
+    };
+
+    let guild_id = ctx.guild_id().unwrap();
+
+    match guild_id.unban(&ctx, UserId::from(user_id)).await {
+        Ok(_) => {
+            ctx.say(format!("unbanned {}", &user_id)).await?;
+        }
+        Err(PoiseError::Model(ModelError::GuildNotFound)) => {
             ctx.say("Member not found").await?;
+        }
+        Err(PoiseError::Model(ModelError::InvalidPermissions(missing_perms))) => {
+            ctx.say(format!("Missing permissions: {:?}", missing_perms)).await?;
+        }
+        Err(err) => {
+            println!("Error: {:?}", err);
         }
     }
 
@@ -97,6 +101,14 @@ pub async fn unban(
 async fn get_member(ctx: &Context<'_>, guild_id: GuildId, user_id: UserId) -> Option<Member> {
     if let Some(member) = guild_id.member(&ctx, user_id).await.ok() {
         Some(member)
+    } else {
+        guild_id.member(&ctx, user_id).await.ok()
+    }
+}
+
+async fn get_guild_member(ctx: &Context<'_>, guild_id: GuildId, user_id: UserId) -> Option<serenity::model::guild::Member> {
+    if let Some(_) = guild_id.unban(&ctx, user_id).await.ok() {
+        Some(guild_id.member(&ctx, user_id).await.ok().unwrap())
     } else {
         guild_id.member(&ctx, user_id).await.ok()
     }
