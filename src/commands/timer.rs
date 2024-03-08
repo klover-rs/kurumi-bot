@@ -122,6 +122,7 @@ pub async fn set(
         .send(|m| {
             m.embed(|e| {
                 e.title("Timer has been set")
+                    .description("Please make sure to have your **DMS enabled for this server!**")
                     .field("Description", &description, true)
                     .field("Time", &format!("<t:{}:R>", timestamp), true)
                     .color(0x00FF00)
@@ -139,7 +140,7 @@ pub async fn set(
         )
         .unwrap();
 
-    tokio::time::sleep(Duration::from_secs(5)).await;
+    tokio::time::sleep(Duration::from_secs(10)).await;
 
     msg.delete(ctx).await?;
 
@@ -156,6 +157,7 @@ pub async fn list(ctx: Context<'_>) -> Result<(), Error> {
         Ok(data) => {
             if data.is_empty() {
                 ctx.send(|m| m.content("You have no timers set.")).await?;
+                return Ok(());
             }
             let mut counter = 0;
             let mut list_string = String::new();
