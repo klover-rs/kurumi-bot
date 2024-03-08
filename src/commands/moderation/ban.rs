@@ -58,6 +58,42 @@ pub async fn ban(
     Ok(())
 }
 
+#[poise::command(
+    prefix_command,
+    slash_command,
+    required_permissions = "BAN_MEMBERS",
+)]
+pub async fn unban(
+    ctx: Context<'_>,
+    #[description = "user you want to unban?"] user: serenity::User,
+) -> Result<(), Error>{
+    let member = get_member(&ctx, ctx.guild_id().unwrap(), user.id).await;
+
+    match member {
+        Some(member) => {
+            match member.unban(&ctx).await {
+                Ok(_) => {
+                    ctx.say(format!("unbanned {}", user.name)).await?;  
+                }
+                Err(PoiseError::Model(ModelError::GuildNotFound)) => {
+                    ctx.say("Member not found").await?;
+                }
+                Err(PoiseError::Model(ModelError::InvalidPermissions(missing_perms))) => {
+                    ctx.say(format!("Missing permissions: {:?}", missing_perms)).await?;
+                }
+                Err(err) => {
+                    println!("Error: {:?}", err);
+                }
+            }
+        }
+        None => {
+            ctx.say("Member not found").await?;
+        }
+    }
+
+    Ok(())
+}
+
 async fn get_member(ctx: &Context<'_>, guild_id: GuildId, user_id: UserId) -> Option<Member> {
     if let Some(member) = guild_id.member(&ctx, user_id).await.ok() {
         Some(member)

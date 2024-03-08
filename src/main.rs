@@ -10,7 +10,7 @@ use poise::serenity_prelude as serenity;
 use shuttle_poise::ShuttlePoise;
 use shuttle_secrets::SecretStore;
 
-use commands::{help::*, info::*, moderation::{ban::ban, kick::kick}, rps::*, timer::*, utils::*};
+use commands::{help::*, info::*, moderation::{ban::{ban, unban}, kick::kick}, rps::*, timer::*, utils::*};
 
 pub struct Data {}
 pub type Error = Box<dyn std::error::Error + Send + Sync>;
@@ -31,7 +31,7 @@ async fn poise(#[shuttle_secrets::Secrets] secret_store: SecretStore) -> Shuttle
                 case_insensitive_commands: true,
                 ..Default::default()
             },
-            commands: vec![help(), ping(), timer(), info(), rock_paper_scissors(), kick(), ban()],
+            commands: vec![help(), ping(), timer(), info(), rock_paper_scissors(), kick(), ban(), unban()],
             on_error: |error| Box::pin(utils::error::on_error(error)),
             ..Default::default()
         })
