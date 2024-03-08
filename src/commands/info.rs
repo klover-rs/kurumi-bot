@@ -27,12 +27,12 @@ pub async fn info(ctx: Context<'_>) -> Result<(), Error> {
             e.title("Info")
                 .description(&info)
                 .field(
-                    "Memory usage <:RAM:1212711528168554556>",
+                    "Memory usage <:RAM:1215414863938068620>",
                     format!("{} / {} MB", mem_usage.used_mem, mem_usage.total_mem),
                     true,
                 )
                 .field(
-                    "Rust version <:rust:1212711458140594226>",
+                    "Rust version <:rust:1215414883072483328>",
                     format!(
                         "Version: `{}`\nChannel: `{:?}`",
                         version.semver, version.channel
