@@ -6,6 +6,9 @@ use serenity::model::id::{UserId, GuildId};
 
 use serenity::model::guild::Member;
 
+use poise::CreateReply;
+use serenity::builder::CreateEmbed;
+
 #[poise::command(
     prefix_command,
     slash_command,
@@ -24,13 +27,19 @@ pub async fn kick(
         Some(member) => {
             match member.kick(&ctx).await {
                 Ok(_) => {
-                    ctx.say(format!("kicked {}\nreason: {}", user.name, reason.unwrap_or("not provided.".to_string()))).await?;
+                    ctx.send(CreateReply::default().embed(
+                        CreateEmbed::default()
+                            .title("Kicked")
+                            .description(format!(
+                                "kicked {}\nreason: {}", user.name, &reason.unwrap_or("not provided.".to_string())
+                            )) 
+                    )).await?; 
                 }
                 Err(PoiseError::Model(ModelError::GuildNotFound)) => {
-                    ctx.say("Member not found").await?;
+                    ctx.send(CreateReply::default().content("Member not found").ephemeral(true)).await?;
                 }
-                Err(PoiseError::Model(ModelError::InvalidPermissions(missing_perms))) => {
-                    ctx.say(format!("Missing permissions: {:?}", missing_perms)).await?;
+                Err(PoiseError::Model(ModelError::InvalidPermissions { required, present })) => {
+                    ctx.send(CreateReply::default().content(format!("Missing permissions: {}\npresent permissions: {}", required, present)).ephemeral(true)).await?;
                 }
                 Err(err) => {
                     println!("Error: {:?}", err);
@@ -39,7 +48,7 @@ pub async fn kick(
             
         }
         None => {
-            ctx.say("Member not found").await?;
+            ctx.send(CreateReply::default().content("Member not found").ephemeral(true)).await?;
         }
     }
 

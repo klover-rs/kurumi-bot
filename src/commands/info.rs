@@ -5,6 +5,12 @@ use reqwest::Client;
 use rustc_version::version_meta;
 use std::fs;
 
+use poise::serenity_prelude as serenity;
+
+use poise::CreateReply;
+use serenity::builder::CreateEmbed;
+use serenity::builder::CreateEmbedAuthor;
+
 use crate::download_docs;
 
 #[poise::command(prefix_command, slash_command)]
@@ -22,32 +28,31 @@ pub async fn info(ctx: Context<'_>) -> Result<(), Error> {
     let info = download_docs::fetch_docs(&"info.md").await.unwrap();
     println!("{}", &info);
 
-    ctx.send(|m| {
-        m.embed(|e| {
-            e.title("Info")
-                .description(&info)
-                .field(
-                    "Memory usage <:RAM:1215414863938068620>",
-                    format!("{} / {} MB", mem_usage.used_mem, mem_usage.total_mem),
-                    true,
-                )
-                .field(
-                    "Rust version <:rust:1215414883072483328>",
-                    format!(
-                        "Version: `{}`\nChannel: `{:?}`",
-                        version.semver, version.channel
-                    ),
-                    true,
-                )
-                .author(|a| {
-                    a.name(format!("owner: {}", &user_info.username))
-                        .icon_url(&user_info.avatar)
-                        .url("https://github.com/Asm-Rosie")
-                })
-                .color(0x672473)
-        })
-    })
-    .await?;
+    ctx.send(CreateReply::default().embed(
+        CreateEmbed::default()
+        .title("Info")
+        .description(&info)
+        .field(
+            "Memory usage <:RAM:1215414863938068620>",
+            format!("{} / {} MB", mem_usage.used_mem, mem_usage.total_mem),
+            true,
+        )
+        .field(
+            "Rust version <:rust:1215414883072483328>",
+            format!(
+                "Version: `{}`\nChannel: `{:?}`",
+                version.semver, version.channel
+            ),
+            true
+        )
+        .author(
+            CreateEmbedAuthor::new(
+                format!("owner: {}", &user_info.username)
+            )
+            .url("https://github.com/Asm-Rosie")
+            .icon_url(&user_info.avatar)
+        )
+    )).await?;
 
     Ok(())
 }

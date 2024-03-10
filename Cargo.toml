@@ -6,7 +6,7 @@ publish = false
 
 [dependencies]
 anyhow = "1.0.71"
-poise = "0.5.5"
+poise = "0.6.1"
 shuttle-poise = "0.35.2"
 shuttle-runtime = "0.35.2"
 shuttle-secrets = "0.35.2"
@@ -22,3 +22,18 @@ serde_json = "1.0.114"
 systemstat = "0.2.3"
 rustc_version = "0.4.0"
 fastrand = "2.0.1"
+discord-presence = "1.0.0"
+serenity = { git = "https://github.com/serenity-rs/serenity", branch = "next", features = [
+	"voice",
+	"dashmap",
+	"parking_lot",
+	"rustls_backend",
+	"model",
+	"gateway",
+	"client",
+	"cache",
+	"builder",
+	"collector",
+	"utils",
+] }
+env_logger = "0.11.3"

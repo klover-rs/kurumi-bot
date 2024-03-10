@@ -1,8 +1,11 @@
 use crate::{Context, Error};
-use poise::serenity_prelude::{self as serenity, guild};
+use poise::serenity_prelude::{self as serenity};
 use poise::serenity_prelude::{Error as PoiseError, ModelError};
 
 use serenity::model::id::{UserId, GuildId};
+
+use poise::CreateReply;
+use serenity::builder::CreateEmbed;
 
 use serenity::model::guild::Member;
 
@@ -41,8 +44,8 @@ pub async fn ban(
                 Err(PoiseError::Model(ModelError::GuildNotFound)) => {
                     ctx.say("Member not found").await?;
                 }
-                Err(PoiseError::Model(ModelError::InvalidPermissions(missing_perms))) => {
-                    ctx.say(format!("Missing permissions: {:?}", missing_perms)).await?;
+                Err(PoiseError::Model(ModelError::InvalidPermissions { required, present })) => {
+                    ctx.send(CreateReply::default().content(format!("Missing permissions: {}\npresent permissions: {}", required, present)).ephemeral(true)).await?;
                 }
                 Err(err) => {
                     println!("Error: {:?}", err);
@@ -87,8 +90,8 @@ pub async fn unban(
         Err(PoiseError::Model(ModelError::GuildNotFound)) => {
             ctx.say("Member not found").await?;
         }
-        Err(PoiseError::Model(ModelError::InvalidPermissions(missing_perms))) => {
-            ctx.say(format!("Missing permissions: {:?}", missing_perms)).await?;
+        Err(PoiseError::Model(ModelError::InvalidPermissions { required, present })) => {
+            ctx.send(CreateReply::default().content(format!("Missing permissions: {}\npresent permissions: {}", required, present)).ephemeral(true)).await?;
         }
         Err(err) => {
             println!("Error: {:?}", err);

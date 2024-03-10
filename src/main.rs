@@ -1,54 +1,94 @@
-mod commands;
-mod db;
-mod download_docs;
-mod events;
-mod utils;
+use std::env::var;
+use std::sync::atomic::{AtomicU32, Ordering};
 
-
-use anyhow::Context as _;
 use poise::serenity_prelude as serenity;
-use shuttle_poise::ShuttlePoise;
-use shuttle_secrets::SecretStore;
+
+mod secrets;
+mod db;
+mod utils;
+mod commands;
+mod download_docs;
 
 use commands::{help::*, info::*, moderation::{ban::{ban, unban}, kick::kick}, rps::*, timer::*, utils::*};
 
-pub struct Data {}
-pub type Error = Box<dyn std::error::Error + Send + Sync>;
-pub type Context<'a> = poise::Context<'a, Data, Error>;
+// Types used by all command functions
+type Error = Box<dyn std::error::Error + Send + Sync>;
+#[allow(unused)]
+type Context<'a> = poise::Context<'a, Data, Error>;
 
-#[shuttle_runtime::main]
-async fn poise(#[shuttle_secrets::Secrets] secret_store: SecretStore) -> ShuttlePoise<Data, Error> {
-    // Get the discord token set in `Secrets.toml`
-    let discord_token = secret_store
-        .get("DISCORD_TOKEN")
-        .context("'DISCORD_TOKEN' was not found")?;
+// Custom user data passed to all command functions
+pub struct Data {
+    poise_mentions: AtomicU32,
+}
+
+async fn on_error(error: poise::FrameworkError<'_, Data, Error>) {
+    // This is our custom error handler
+    // They are many errors that can occur, so we only handle the ones we want to customize
+    // and forward the rest to the default handler
+    match error {
+        poise::FrameworkError::Setup { error, .. } => panic!("Failed to start bot: {:?}", error),
+        poise::FrameworkError::Command { error, ctx, .. } => {
+            println!("Error in command `{}`: {:?}", ctx.command().name, error,);
+        }
+        error => {
+            if let Err(e) = poise::builtins::on_error(error).await {
+                println!("Error while handling error: {}", e)
+            }
+        }
+    }
+}
+
+#[tokio::main]
+async fn main() {
+    env_logger::init();
+
+    let token = secrets::get_secret("DISCORD_TOKEN");
+    let intents =
+        serenity::GatewayIntents::non_privileged() | serenity::GatewayIntents::MESSAGE_CONTENT;
 
     let framework = poise::Framework::builder()
-        .token(discord_token)
-        .options(poise::FrameworkOptions {
-            prefix_options: poise::PrefixFrameworkOptions {
-                prefix: Some('>'.into()),
-                case_insensitive_commands: true,
-                ..Default::default()
-            },
-            commands: vec![help(), ping(), timer(), info(), rock_paper_scissors(), kick(), ban(), unban()],
-            on_error: |error| Box::pin(utils::error::on_error(error)),
-            ..Default::default()
-        })
-        .intents(
-            serenity::GatewayIntents::non_privileged() | serenity::GatewayIntents::MESSAGE_CONTENT,
-        )
-        .setup(|ctx, _ready, framework| {
+        .setup(move |_ctx, _ready, _framework| {
             Box::pin(async move {
-                println!("Logged in as {}", _ready.user.name);
-                poise::builtins::register_globally(ctx, &framework.options().commands).await?;
-                events::timer::check_timer().await;
-                Ok(Data {})
+                poise::builtins::register_globally(_ctx, &_framework.options().commands).await?;
+                Ok(Data {
+                    poise_mentions: AtomicU32::new(0),
+                })
             })
         })
-        .build()
-        .await
-        .map_err(shuttle_runtime::CustomError::new)?;
+        .options(poise::FrameworkOptions {
+            commands: vec![help(), info(), ban(), kick(), unban(), rock_paper_scissors(), timer(), ping()],
+            on_error: |error| Box::pin(on_error(error)),
+            event_handler: |ctx, event, framework, data| {
+                Box::pin(event_handler(ctx, event, framework, data))
+            },
+            ..Default::default()
+        })
+        .build();
 
-    Ok(framework.into())
+    let client = serenity::ClientBuilder::new(token, intents)
+        .framework(framework)
+        .await;
+
+    client.unwrap().start().await.unwrap();
+}
+
+async fn event_handler(
+    ctx: &serenity::Context,
+    event: &serenity::FullEvent,
+    _framework: poise::FrameworkContext<'_, Data, Error>,
+    data: &Data,
+) -> Result<(), Error> {
+    match event {
+        serenity::FullEvent::Ready { data_about_bot, .. } => {
+            println!("Logged in as {}", data_about_bot.user.name);
+        }
+        serenity::FullEvent::Message { new_message, .. } => {
+            println!("Message from {}: {}", new_message.author.name, new_message.content);
+        }
+        serenity::FullEvent::MessageDelete { channel_id, deleted_message_id, guild_id } => {
+            println!("deleted this message: {} in guild: {}", deleted_message_id, guild_id.unwrap());
+        }
+        _ => {}
+    }
+    Ok(())
 }

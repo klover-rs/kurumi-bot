@@ -7,6 +7,11 @@ use std::time::Duration;
 
 use crate::download_docs;
 
+use poise::serenity_prelude as serenity;
+
+use poise::CreateReply;
+use serenity::builder::CreateEmbed;
+
 #[poise::command(
     prefix_command,
     slash_command,
@@ -89,15 +94,12 @@ pub async fn set(
             }
         }
         _ => {
-            ctx.send(|m| {
-                m.embed(|e| {
-                    e.title("Error")
-                        .description("Invalid unit. Only s, m, and h are supported")
-                        .color(0xFF0000)
-                })
-                .ephemeral(true)
-            })
-            .await?;
+            ctx.send(CreateReply::default().embed(
+                CreateEmbed::default()
+                .title("Error")
+                .description("Invalid unit. Only s, m, and h are supported")
+                .color(0xFF0000)
+            ).ephemeral(true)).await?;
             return Ok(());
         }
     };
@@ -118,17 +120,14 @@ pub async fn set(
     println!("user_id: {}", user_id);
     println!("dm_channel: {}", dm_channel.id);
 
-    let msg = ctx
-        .send(|m| {
-            m.embed(|e| {
-                e.title("Timer has been set")
-                    .description("Please make sure to have your **DMS enabled for this server!**")
-                    .field("Description", &description, true)
-                    .field("Time", &format!("<t:{}:R>", timestamp), true)
-                    .color(0x00FF00)
-            })
-        })
-        .await?;
+    let msg = ctx.send(CreateReply::default().embed(
+        CreateEmbed::default()
+        .title("Timer has been set")
+        .description("Please make sure to have your **DMS enabled for this server!**")
+        .field("Description", &description, true)
+        .field("Time", &format!("<t:{}:R>", timestamp), true)
+        .color(0x00FF00)
+    )).await?;
 
     database
         .insert_timer(
@@ -156,7 +155,7 @@ pub async fn list(ctx: Context<'_>) -> Result<(), Error> {
     match database.read_timer_by_uid(ctx.author().id.to_string().parse::<i64>().unwrap()) {
         Ok(data) => {
             if data.is_empty() {
-                ctx.send(|m| m.content("You have no timers set.")).await?;
+                ctx.say("No timers found").await?;
                 return Ok(());
             }
             let mut counter = 0;
@@ -173,15 +172,13 @@ pub async fn list(ctx: Context<'_>) -> Result<(), Error> {
 
             println!("{}", list_string);
 
-            ctx.send(|m| {
-                m.embed(|e| {
-                    e.title("Timer list").description(format!(
-                        "all of your timers are listed below: \n------------------\n{}",
-                        &list_string
-                    ))
-                })
-            })
-            .await?;
+            ctx.send(CreateReply::default().embed(
+                CreateEmbed::default()
+                .title("Timer list")
+                .description(format!(
+                    "all of your timers are listed below: \n------------------\n{}", &list_string
+                ))
+            )).await?;
         }
         Err(err) => {
             println!("Error: {:?}", err);
@@ -203,7 +200,7 @@ pub async fn delete(
     match database.read_timer_by_uid(ctx.author().id.to_string().parse::<i64>().unwrap()) {
         Ok(data) => {
             if data.is_empty() {
-                ctx.send(|m| m.content("You have no timers set.")).await?;
+                ctx.say("No timers found").await?;
             }
             for (id, _, _, _, _, _) in data {
                 if id == data_id {
@@ -226,14 +223,12 @@ async fn help(ctx: Context<'_>) -> Result<(), Error> {
         .await
         .unwrap();
 
-    ctx.send(|m| {
-        m.embed(|e| {
-            e.title("Help (coming soon)")
-                .color(0x0000FF)
-                .description(format!("{}", result))
-        })
-    })
-    .await?;
+    ctx.send(CreateReply::default().embed(
+        CreateEmbed::default()
+        .title("Help")
+        .description(format!("{}", result))
+        .color(0x0000FF)
+    )).await?;
 
     println!("{}", result);
 

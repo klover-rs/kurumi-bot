@@ -1,6 +1,8 @@
 use crate::{Context, Error};
 use std::time::Instant;
 
+use poise::CreateReply;
+
 /// Shows the bot's latency
 #[poise::command(prefix_command, slash_command)]
 pub async fn ping(ctx: Context<'_>) -> Result<(), Error> {
@@ -8,9 +10,8 @@ pub async fn ping(ctx: Context<'_>) -> Result<(), Error> {
     let msg = ctx.say("Calculating ping...").await?;
     let end_time = Instant::now();
 
-    msg.edit(ctx, |m| {
-        m.content(format!("{} ms", (end_time - start_time).as_millis()))
-    })
-    .await?;
+    msg.edit(ctx, CreateReply::default()
+        .content(format!("{} ms", (end_time - start_time).as_millis()))
+    ).await?;
     Ok(())
 }

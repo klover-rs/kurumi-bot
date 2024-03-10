@@ -1,5 +1,10 @@
 use crate::{Context, Error};
 
+use poise::serenity_prelude as serenity;
+
+use poise::CreateReply;
+use serenity::builder::CreateEmbed;
+
 #[derive(Debug, poise::ChoiceParameter)]
 pub enum StringChoice {
     #[name = "Rock"]
@@ -53,10 +58,14 @@ pub async fn rock_paper_scissors(
         }
     }
 
-    ctx.say(format!(
-        "- You entered {:?}.\n- Computer chose: {}\n\n**{}**",
-        choice, computer_choice, result
-    ))
-    .await?;
+    ctx.send(CreateReply::default().embed(
+        CreateEmbed::default()
+        .title("RPS Game")
+        .description(format!(
+            "- You entered {:?}.\n- Kurumi chose: {}\n\n**{}**",
+            choice, computer_choice, result
+        ))
+        .color(0xa33a0d)
+    )).await?;
     Ok(())
 }
