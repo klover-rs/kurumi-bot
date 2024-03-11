@@ -93,7 +93,18 @@ async fn event_handler(
         }
         serenity::FullEvent::MessageUpdate { old_if_available, new, event } => {
             
-            println!("{:?}", event.content);
+            println!("edited message: {:?}\nid: {}", event.content, event.id.to_string());
+
+            let edited_msg = event.content.clone();
+
+            match edited_msg {
+                Some(content) => {
+                    handler::message_logging::edited_messages_handler(&event.id, &content, ctx).await.unwrap();
+                }
+                None => {
+                    println!("edited content is None");
+                }
+            }
         }
         _ => {}
     }
