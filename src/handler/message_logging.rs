@@ -110,7 +110,7 @@ pub async fn edited_messages_handler(message_id: &MessageId, new_message: &str, 
             .field("Author", format!("<@{}>", message[0].3), false)
             .footer(CreateEmbedFooter::new(format!("msg id: {}", message[0].0)))
             .timestamp(current_timestamp)
-            .color(0x00FF00)
+            .color(0x0787F7)
     )).await?;
 
     db.update_log_content(message_id.to_string().parse().unwrap(), &new_message)?; 
