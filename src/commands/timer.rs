@@ -202,12 +202,29 @@ pub async fn delete(
             if data.is_empty() {
                 ctx.say("No timers found").await?;
             }
+
+            let mut found = false;
+
             for (id, _, _, _, _, _) in data {
                 if id == data_id {
                     database.delete_timer(id).unwrap();
-                } else {
+                    found = true;
+                    break;
+                } else if id > data_id {
+                    println!("id not found");
+                } else if id < data_id {
                     println!("id not found");
                 }
+                else {
+                    println!("id not found");
+                }
+                
+            }
+
+            if !found {
+                ctx.say("Timer not found").await?;
+            } else {
+                ctx.say("Timer deleted").await?;
             }
         }
         Err(err) => {
