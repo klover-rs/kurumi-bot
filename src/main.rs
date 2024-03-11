@@ -7,6 +7,7 @@ mod secrets;
 mod db;
 mod utils;
 mod commands;
+mod handler;
 mod download_docs;
 
 use commands::{help::*, info::*, moderation::{ban::{ban, unban}, kick::kick}, rps::*, timer::*, utils::*};
@@ -14,7 +15,7 @@ use commands::{help::*, info::*, moderation::{ban::{ban, unban}, kick::kick}, rp
 // Types used by all command functions
 type Error = Box<dyn std::error::Error + Send + Sync>;
 #[allow(unused)]
-type Context<'a> = poise::Context<'a, Data, Error>;
+pub type Context<'a> = poise::Context<'a, Data, Error>;
 
 // Custom user data passed to all command functions
 pub struct Data {
@@ -84,9 +85,15 @@ async fn event_handler(
         }
         serenity::FullEvent::Message { new_message, .. } => {
             println!("Message from {}: {}", new_message.author.name, new_message.content);
+            handler::message_logging::handle_messages(new_message, _framework).await.unwrap();
         }
         serenity::FullEvent::MessageDelete { channel_id, deleted_message_id, guild_id } => {
             println!("deleted this message: {} in guild: {}", deleted_message_id, guild_id.unwrap());
+            handler::message_logging::deleted_messages_handler(&deleted_message_id, &ctx).await.unwrap();
+        }
+        serenity::FullEvent::MessageUpdate { old_if_available, new, event } => {
+            
+            println!("{:?}", event.content);
         }
         _ => {}
     }
