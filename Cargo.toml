@@ -37,3 +37,4 @@ serenity = { git = "https://github.com/serenity-rs/serenity", branch = "next", f
 	"utils",
 ] }
 env_logger = "0.11.3"
+regex = "1.10.3"
