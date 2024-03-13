@@ -12,6 +12,8 @@ use poise::serenity_prelude as serenity;
 use poise::CreateReply;
 use serenity::builder::CreateEmbed;
 
+use crate::commands::components::duration_timer;
+
 #[poise::command(
     prefix_command,
     slash_command,
@@ -103,6 +105,8 @@ pub async fn set(
             return Ok(());
         }
     };
+
+    duration_timer::set_timestamp(ctx, unit, number).await.unwrap();
 
     let current_time_since_epoch = Utc::now().timestamp();
 
@@ -211,12 +215,11 @@ pub async fn delete(
                     found = true;
                     break;
                 } else if id > data_id {
-                    println!("id not found");
+                    continue;
                 } else if id < data_id {
-                    println!("id not found");
-                }
-                else {
-                    println!("id not found");
+                    continue;
+                } else {
+                    continue;
                 }
                 
             }
