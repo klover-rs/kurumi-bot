@@ -4,3 +4,4 @@ pub mod rps;
 pub mod timer;
 pub mod utils;
 pub mod moderation;
+pub mod components;
