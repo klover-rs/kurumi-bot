@@ -9,8 +9,10 @@ mod utils;
 mod commands;
 mod handler;
 mod download_docs;
+mod rich_presence;
+mod events;
 
-use commands::{help::*, info::*, moderation::{ban::{ban, unban}, kick::kick}, rps::*, timer::*, utils::*};
+use commands::{help::*, info::*, moderation::{ban::{ban, unban}, kick::kick, mute::mute}, rps::*, timer::*, utils::*};
 
 // Types used by all command functions
 type Error = Box<dyn std::error::Error + Send + Sync>;
@@ -18,9 +20,7 @@ type Error = Box<dyn std::error::Error + Send + Sync>;
 pub type Context<'a> = poise::Context<'a, Data, Error>;
 
 // Custom user data passed to all command functions
-pub struct Data {
-    poise_mentions: AtomicU32,
-}
+pub struct Data {}
 
 async fn on_error(error: poise::FrameworkError<'_, Data, Error>) {
     // This is our custom error handler
@@ -51,13 +51,12 @@ async fn main() {
         .setup(move |_ctx, _ready, _framework| {
             Box::pin(async move {
                 poise::builtins::register_globally(_ctx, &_framework.options().commands).await?;
-                Ok(Data {
-                    poise_mentions: AtomicU32::new(0),
-                })
+                events::timer::check_timer().await;
+                Ok(Data {})
             })
         })
         .options(poise::FrameworkOptions {
-            commands: vec![help(), info(), ban(), kick(), unban(), rock_paper_scissors(), timer(), ping()],
+            commands: vec![help(), info(), ban(), kick(), unban(), mute(), rock_paper_scissors(), timer(), ping()],
             on_error: |error| Box::pin(on_error(error)),
             event_handler: |ctx, event, framework, data| {
                 Box::pin(event_handler(ctx, event, framework, data))
@@ -86,6 +85,7 @@ async fn event_handler(
         serenity::FullEvent::Message { new_message, .. } => {
             println!("Message from {}: {}", new_message.author.name, new_message.content);
             handler::message_logging::handle_messages(new_message, _framework).await.unwrap();
+            handler::messages_reactions::message_reactions(new_message, &ctx).await?;
         }
         serenity::FullEvent::MessageDelete { channel_id, deleted_message_id, guild_id } => {
             println!("deleted this message: {} in guild: {}", deleted_message_id, guild_id.unwrap());
