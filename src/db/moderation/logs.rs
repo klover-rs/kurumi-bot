@@ -34,7 +34,7 @@ impl Database {
         Ok(())
     }
 
-    pub fn insert_log(&self, msg_id: u64, guild_id: u64, channel_id: u64, author_id: u64, content: &str) -> RusqliteResult<()> {
+    pub fn insert_log(&self, msg_id: u64, guild_id: u64, channel_id: u64, author_id: u64, content: &str, attachments: Option<String>) -> RusqliteResult<()> {
         let mut connection = self.pool.lock().unwrap().get().unwrap();
 
         let trans = connection.transaction()?;

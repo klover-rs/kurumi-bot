@@ -43,7 +43,7 @@ pub async fn handle_messages(message: &Message , _framework: FrameworkContext<'_
 
     db.create_table_logs()?;
 
-    db.insert_log(msg_id, guild_id, channel_id, author_id, &content)?;
+    db.insert_log(msg_id, guild_id, channel_id, author_id, &content, None)?;
 
     Ok(())
 }
@@ -70,9 +70,10 @@ pub async fn deleted_messages_handler(message_id: &MessageId, ctx: &serenity::Co
     channel_id.send_message(&ctx.http, CreateMessage::default().add_embed(
         CreateEmbed::default()
             .title("Deleted message")
-            .description(format!("{}", message[0].4))
+            .description(format!("`{}`", message[0].4))
             .field("Channel", format!("<#{}>", message[0].2), false)
             .field("Author", format!("<@{}>", message[0].3), false)
+            
             .footer(CreateEmbedFooter::new(format!("msg id: {}", message[0].0)))
             .color(0xFF0000)
             
@@ -105,7 +106,7 @@ pub async fn edited_messages_handler(message_id: &MessageId, new_message: &str, 
     channel_id.send_message(&ctx.http, CreateMessage::default().add_embed(
         CreateEmbed::default()
             .title("Edited message")
-            .description(format!("**new message**:\n{}\n**old message**:\n{}", new_message, message[0].4))
+            .description(format!("**new message**:\n`{}`\n**old message**:\n`{}`", new_message, message[0].4))
             .field("Channel", format!("<#{}>", message[0].2), false)
             .field("Author", format!("<@{}>", message[0].3), false)
             .footer(CreateEmbedFooter::new(format!("msg id: {}", message[0].0)))

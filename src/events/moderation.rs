@@ -25,7 +25,7 @@ pub async fn check_mutes() {
                 Ok(data) => {
                     println!("data: {:?}", data);
                     for (uid, guild_id, reason, roles, duration) in data {
-                        if current_timestamp >= duration.parse().unwrap() {
+                        if current_timestamp >= duration {
                             println!("MUTED EXPIRED: {}", uid);
                             database.delete_muted(uid).unwrap();
                         }
@@ -35,7 +35,7 @@ pub async fn check_mutes() {
                     println!("Error: {:?}", err);
                 }
             }
-            tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+            tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
         }
 
         

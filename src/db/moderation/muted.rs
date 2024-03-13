@@ -34,7 +34,7 @@ impl Database {
         Ok(())
     }
 
-    pub fn insert_muted(&self, uid: i64, guild_id: i64, reason: &str, roles: Vec<u64>, duration: &str) -> RusqliteResult<()> {
+    pub fn insert_muted(&self, uid: i64, guild_id: i64, reason: &str, roles: Vec<u64>, duration: i64) -> RusqliteResult<()> {
         
         let mut connection = self.pool.lock().unwrap().get().unwrap();
 
@@ -53,7 +53,7 @@ impl Database {
         Ok(())
     }
 
-    pub fn read_muted(&self) -> RusqliteResult<Vec<(i64, i64, String, String, String)>> {
+    pub fn read_muted(&self) -> RusqliteResult<Vec<(i64, i64, String, String, i64)>> {
         let connection = self.pool.lock().unwrap().get().unwrap();
 
         let mut statement = connection.prepare("SELECT * FROM muted")?;
