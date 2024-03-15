@@ -37,7 +37,7 @@ pub async fn discord_rpc() -> anyhow::Result<()> {
                 .assets(|assets| {
                     assets.large_image("kurumi_dis")
                 })
-                .append_buttons(|button| button.label("Click Me!").url("https://google.com/"))
+                
                 
         })
         .unwrap();
