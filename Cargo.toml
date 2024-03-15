@@ -38,3 +38,7 @@ serenity = { git = "https://github.com/serenity-rs/serenity", branch = "next", f
 ] }
 env_logger = "0.11.3"
 regex = "1.10.3"
+bb8 = "0.8.3"
+bb8-postgres = "0.8.1"
+tokio-postgres = "0.7.10"
+
