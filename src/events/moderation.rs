@@ -5,44 +5,58 @@ use reqwest::header::{HeaderMap, HeaderValue, CONTENT_TYPE, AUTHORIZATION};
 use reqwest::Client;
 use tokio::task;
 use std::sync::Arc;
+use tokio::task::LocalSet;
+
 
 use crate::secrets::get_secret;
 
-pub async fn check_mutes() {
-    let db = Arc::new(Database::new("moderation.db").unwrap());
-    db.create_table_muted().unwrap();
+pub async fn check_mutes() -> Result<(), Box<dyn std::error::Error + Send>> {
+    let db = Arc::new(Database::new().await.unwrap());
+    db.create_table().await.unwrap();
 
     let db_clone = Arc::clone(&db);
 
-    task::spawn(async move {
+    std::thread::spawn(move || {
         let database = db_clone;
 
-        let current_timestamp = Utc::now().timestamp();
-
+        let rt = tokio::runtime::Runtime::new().unwrap();
 
         loop {
-            match database.read_muted() {
-                Ok(data) => {
-                    println!("data: {:?}", data);
-                    for (uid, guild_id, reason, roles, duration) in data {
-                        if current_timestamp >= duration {
-                            println!("MUTED EXPIRED: {}", uid);
-                            database.delete_muted(uid).unwrap();
+            let current_timestamp = Utc::now().timestamp();
+
+            rt.block_on(async {
+                match database.read_muted().await {
+                    Ok(data) => {
+                        println!("data: {:?}", data);
+    
+                        for muted_record in data {
+                            if current_timestamp >= muted_record.duration {
+                                println!("MUTED EXPIRED: {}", muted_record.uid);
+                                database.delete(muted_record.uid).await.unwrap();
+                                let roles_vec: Vec<&str> = muted_record.roles.split(',').collect();
+                                add_roles(roles_vec, muted_record.uid, muted_record.guild_id).await.unwrap();
+                            }
                         }
                     }
-                }
-                Err(err) => {
-                    println!("Error: {:?}", err);
-                }
-            }
-            tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
-        }
+                    Err(err) => {
+                        println!("Error: {:?}", err);
+                        
 
-        
+                    }
+                }
+            });
+
+                
+            
+            std::thread::sleep(std::time::Duration::from_millis(200));
+        }
     });
+
+    Ok(())
 }
 
-async fn add_roles(roles: Vec<String>, uid: i64, guild_id: i64) -> Result<(), reqwest::Error> {
+
+async fn add_roles(roles: Vec<&str>, uid: i64, guild_id: i64) -> Result<(), reqwest::Error> {
     let client = Client::new();
 
     let url = format!("https://discord.com/api/v9/guilds/{}/members/{}", guild_id, uid);
@@ -50,7 +64,7 @@ async fn add_roles(roles: Vec<String>, uid: i64, guild_id: i64) -> Result<(), re
     let mut headers = HeaderMap::new();
     headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
 
-    let token = get_secret("BOT_TOKEN");
+    let token = get_secret("DISCORD_TOKEN");
 
     let mut authorization_value = HeaderValue::from_str(&format!("Bot {}", token)).unwrap();
     authorization_value.set_sensitive(true);

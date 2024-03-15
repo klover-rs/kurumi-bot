@@ -1,6 +1,6 @@
 use crate::db::timer::Database;
 use chrono::Utc;
-use std::fs;
+use std::{fs, thread::current};
 use serde_json::{json, Value};
 use reqwest::Client;
 use tokio::task;
@@ -10,56 +10,54 @@ use std::sync::Arc;
 pub async fn check_timer() {
 
 
-    let db = Arc::new(Database::new("timer.db").unwrap());
-    db.create_table_timer().unwrap();
+    let db = Arc::new(Database::new().await.unwrap());
+    db.create_table().await.unwrap();
 
     let db_clone = Arc::clone(&db);
 
-    tokio::task::spawn(async move {
+    std::thread::spawn(move || {
         let database = db_clone;
 
+        let rt = tokio::runtime::Runtime::new().unwrap();
+
         loop {
-            match database.read_timer() {
-                Ok(data) => {
 
-                    let current_timestamp = Utc::now().timestamp();
-
-                    for (id, uid, description, time, dm_channel, _) in data {
-                        if current_timestamp >= time {
-                            let db_clone = Arc::clone(&database);
-
-                            task::spawn(async move {
-                                println!("Timer expired for user {}: {}", uid, description);
-
+            rt.block_on(async {
+                match database.read().await {
+                    Ok(data) => {
+    
+                        let current_timestamp = Utc::now().timestamp();
+    
+                        for timer_recs in data {
+                            if current_timestamp >= timer_recs.duration {
+                                println!("Timer expired: {}", timer_recs.uid);
+                                
+    
                                 let embed = json!({
                                     "title": "Timer expired",
                                     "description": "the timer expired",
                                     "color": 16711680, 
                                     "fields": [
-                                        {"name": "Description", "value": description},
-                                        {"name": "User", "value": format!("<@{}>", uid)}
+                                        {"name": "Description", "value": timer_recs.description},
+                                        {"name": "User", "value": format!("<@{}>", timer_recs.uid)}
                                     ]
                                 });
-
-                                if let Err(err) = db_clone.delete_timer(id) {
-                                    println!("Failed to delete timer: {:?}", err);
-                                } 
     
-                                if let Err(err) = send_message(&dm_channel.to_string(), &format!("<@{}>", uid), Some(embed)).await {
+                                database.delete_by_id(timer_recs.id).await.unwrap();
+    
+                                if let Err(err) = send_message(&timer_recs.dm_channel.to_string(), &format!("<@{}>", timer_recs.uid), Some(embed)).await {
                                     println!("Failed to send message: {:?}", err);
                                 }
-    
-                                 
-                            });
+                            }
                         }
                     }
+                    Err(err) => {
+                        println!("Error: {:?}", err);
+                    }
                 }
-                Err(err) => {
-                    println!("Error: {:?}", err);
-                }
-            }
+            });
 
-            tokio::time::sleep(std::time::Duration::from_millis(250)).await;
+            std::thread::sleep(std::time::Duration::from_millis(250));
         }
     });
 }
