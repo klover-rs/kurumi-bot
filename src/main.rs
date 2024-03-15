@@ -52,6 +52,7 @@ async fn main() {
             Box::pin(async move {
                 poise::builtins::register_globally(_ctx, &_framework.options().commands).await?;
                 events::timer::check_timer().await;
+                events::moderation::check_mutes().await.unwrap();
                 Ok(Data {})
             })
         })
