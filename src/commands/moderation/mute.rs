@@ -1,4 +1,4 @@
-use crate::{Context, Error};
+use crate::{Context, Data, Error};
 use poise::serenity_prelude as serenity;
 use poise::serenity_prelude::{Error as PoiseError, ModelError};
 
@@ -8,8 +8,11 @@ use serenity::builder::CreateEmbed;
 use poise::CreateReply;
 
 use chrono::{Utc, Duration};
+use systemstat::data;
 
 use crate::db::moderation::muted::Database;
+
+use crate::commands::components::duration_timer::{self, duration_timer};
 
 use serenity::model::guild::Member;
 
@@ -21,106 +24,67 @@ use serenity::model::guild::Member;
 pub async fn mute(
     ctx: Context<'_>,
     #[description = "user you want to kick?"] user: serenity::User,
-    #[description = "duration of the mute?"] number: String,
+    #[description = "duration of the mute?"] duration: String,
     #[description = "time unit (s, m, h)"] unit: String,
     #[description = "reason for the kick?"] reason: Option<String>,
 ) -> Result<(), Error> {
 
-    let duration = match unit.as_str() {
-        "s" => {
-            let parts = number.split(':').collect::<Vec<&str>>();
+    let reason = reason.unwrap_or("N/a".to_string());
 
-            match parts.len() {
-                1 => {
-                    let seconds = parts[0].parse::<i64>().unwrap();
-                    Duration::try_seconds(seconds)
-                }
-                _ => {
-                    let seconds = parts[0].parse::<i64>().unwrap();
-                    Duration::try_seconds(seconds)
-                }
+    
+    
+    let timestamp = match duration_timer::set_timestamp(ctx, unit, duration).await {
+        Ok(timestamp) => {
+            if timestamp == 0 {
+                return Ok(());
+            } else {
+                timestamp
             }
         }
-        "m" => {
-            let parts = number.split(':').collect::<Vec<&str>>();
-
-            match parts.len() {
-                1 => {
-                    let seconds = parts[0].parse::<i64>().unwrap();
-                    Duration::try_seconds(seconds * 60)
-                }
-                2 => {
-                    let minutes = parts[0].parse::<i64>().unwrap();
-                    let seconds = parts[1].parse::<i64>().unwrap();
-
-                    Duration::try_seconds(minutes * 60 + seconds)
-                }
-                _ => {
-                    let minutes = parts[0].parse::<i64>().unwrap();
-                    let seconds = parts[1].parse::<i64>().unwrap();
-
-                    Duration::try_seconds(minutes * 60 + seconds)
-                }
-            }
-        }
-        "h" => {
-            let parts = number.split(':').collect::<Vec<&str>>();
-
-            match parts.len() {
-                1 => {
-                    let hours = parts[0].parse::<i64>().unwrap();
-                    Duration::try_seconds(hours * 60 * 60)
-                }
-                2 => {
-                    let hours = parts[0].parse::<i64>().unwrap();
-                    let minutes = parts[1].parse::<i64>().unwrap();
-                    Duration::try_seconds(hours * 60 * 60 + minutes * 60)
-                }
-                3 => {
-                    let hours = parts[0].parse::<i64>().unwrap();
-                    let minutes = parts[1].parse::<i64>().unwrap();
-                    let seconds = parts[2].parse::<i64>().unwrap();
-                    Duration::try_seconds(hours * 60 * 60 + minutes * 60 + seconds)
-                }
-                _ => {
-                    let hours = parts[0].parse::<i64>().unwrap();
-                    let minutes = parts[1].parse::<i64>().unwrap();
-                    let seconds = parts[2].parse::<i64>().unwrap();
-                    Duration::try_seconds(hours * 60 * 60 + minutes * 60 + seconds)
-                }
-            }
-        }
-        _ => {
-            ctx.send(CreateReply::default().embed(
-                CreateEmbed::default()
-                .title("Error")
-                .description("Invalid unit. Only s, m, and h are supported")
-                .color(0xFF0000)
-            ).ephemeral(true)).await?;
+        Err(e) => {
+            println!("Error: {}", e);
             return Ok(());
         }
     };
 
-
-    let current_timestamp = Utc::now();
-
-    let timestamp = (current_timestamp + duration.unwrap()).timestamp();
-
-
     let member = get_member(&ctx, ctx.guild_id().unwrap(), user.id).await;
 
     if let Some(member) = member {
-        let roles = member.roles;
+        let roles = &member.roles;
 
-        // Dereference the role_id to obtain the u64 value
-        let mut u64_values: Vec<u64> = Vec::new();
+        
+        let mut u64_roles: Vec<u64> = Vec::new();
         for role_id in roles {
-            u64_values.push(role_id.to_string().parse::<u64>().unwrap());
+            u64_roles.push(role_id.to_string().parse::<u64>().unwrap());
         }
 
-        println!("u64_values: {:?}", u64_values);
+        println!("u64_values: {:?}", u64_roles);
 
         ctx.say(format!("timestamp: <t:{:?}:R>", timestamp)).await?;
+
+        let database = Database::new().await.unwrap();
+
+        database.create_table().await.unwrap();
+
+        match database.insert(user.id.to_string().parse().unwrap(), ctx.guild_id().unwrap().into(), &reason, u64_roles, timestamp).await {
+            Ok(_) => {
+                ()
+            },
+            Err(e) => {
+                println!("Error: {:?}", e);
+                return Ok(());
+            }
+        }
+
+        member.remove_roles(&ctx.http(), &roles).await?;
+
+        ctx.send(CreateReply::default().embed(
+            CreateEmbed::default()
+            .title("Member has been muted")
+            .description(format!("muted <@{}> successfully", user.id))
+            .color(0xFF0000)
+            
+        )).await?;
 
         
     } else {

@@ -1,5 +1,6 @@
 use poise::serenity_prelude as serenity;
-use chrono::{Utc, Duration};
+use chrono::Utc;
+use std::time::{self, Duration};
 
 
 use std::num::ParseIntError;
@@ -16,235 +17,164 @@ pub async fn duration_timer(
 ) -> Result<i64, Error> {
     
 
-    match unit.as_str() {
+    let c_duration = match unit.as_str() {
         "s" => {
             let parts = duration.split(':').collect::<Vec<&str>>();
 
-            match parts.len()
-            {
+            match parts.len() {
                 1 => {
-                    let seconds = match parts[0].parse::<i64>() {
+                    let seconds = match parts[0].parse::<u64>() {
                         Ok(seconds) => seconds,
                         Err(e) => {
-                            send_parse_error(ctx, e).await?;
-                            return Ok(0)
+                            send_error_msg(ctx, &e.to_string()).await.unwrap();
+                            return Ok(0);
                         }
                     };
-                    match Duration::try_seconds(seconds) {
-                        Some(duration) => {
-                            duration.num_seconds();
-                            return Ok(duration.num_seconds())
-                        }
-                        None => {
-                            return Ok(0)
-                        }
-                    }
-                    
+                    Duration::from_secs(seconds)
                 }
                 _ => {
-                    let seconds = match parts[0].parse::<i64>() {
+                    let seconds = match parts[0].parse::<u64>() {
                         Ok(seconds) => seconds,
                         Err(e) => {
-                            send_parse_error(ctx, e).await?;
-                            return Ok(0)
+                            send_error_msg(ctx, &e.to_string()).await.unwrap();
+                            return Ok(0);
                         }
                     };
-                    match Duration::try_seconds(seconds) {
-                        Some(duration) => {
-                            return Ok(duration.num_seconds())
-                        }
-                        None => {
-                            return Ok(0)
-                        }
-                    }
-                } 
+                    Duration::from_secs(seconds)
+                }
             }
-            
         }
         "m" => {
             let parts = duration.split(':').collect::<Vec<&str>>();
 
-            match parts.len()
-            {
+            match parts.len() {
                 1 => {
-                    let seconds = match parts[0].parse::<i64>() {
+                    let seconds = match parts[0].parse::<u64>() {
                         Ok(seconds) => seconds,
                         Err(e) => {
-                            send_parse_error(ctx, e).await?;
-                            return Ok(0)
+                            send_error_msg(ctx, &e.to_string()).await.unwrap();
+                            return Ok(0);
                         }
                     };
-
-                    match Duration::try_seconds(seconds * 60) {
-                        Some(duration) => {
-                            
-                            return Ok(duration.num_seconds())
-                        }
-                        None => {
-                            return Ok(0)
-                        }
-                    }
+                    Duration::from_secs(seconds * 60)
                 }
                 2 => {
-                    let minutes = match parts[0].parse::<i64>() {
-                        Ok(minutes) => minutes,
+                    let minutes = match parts[0].parse::<u64>() {
+                        Ok(min) => min,
                         Err(e) => {
-                            send_parse_error(ctx, e).await?;
-                            return Ok(0)
+                            send_error_msg(ctx, &e.to_string()).await.unwrap();
+                            return Ok(0);
                         }
                     };
-                    let seconds = match parts[0].parse::<i64>() {
+                    let seconds = match parts[1].parse::<u64>() {
                         Ok(seconds) => seconds,
                         Err(e) => {
-                            send_parse_error(ctx, e).await?;
-                            return Ok(0)
+                            send_error_msg(ctx, &e.to_string()).await.unwrap();
+                            return Ok(0);
                         }
                     };
 
-                    match Duration::try_seconds(minutes * 60 + seconds) {
-                        Some(duration) => {
-                            
-                            return Ok(duration.num_seconds())
-                        }
-                        None => {
-                            return Ok(0)
-                        }
-                    }
-                    
+                    Duration::from_secs((minutes * 60) + seconds)
                 }
                 _ => {
-                    let minutes = parts[0].parse::<i64>().unwrap();
-                    let seconds = parts[1].parse::<i64>().unwrap();
+                    let minutes = match parts[0].parse::<u64>() {
+                        Ok(min) => min,
+                        Err(e) => {
+                            send_error_msg(ctx, &e.to_string()).await.unwrap();
+                            return Ok(0);
+                        }
+                    };
+                    let seconds = match parts[1].parse::<u64>() {
+                        Ok(seconds) => seconds,
+                        Err(e) => {
+                            send_error_msg(ctx, &e.to_string()).await.unwrap();
+                            return Ok(0);
+                        }
+                    };
 
-                    match Duration::try_seconds(minutes * 60 + seconds) {
-                        Some(duration) => {
-                            
-                            return Ok(duration.num_seconds())
-                        }
-                        None => {
-                            return Ok(0)
-                        }
-                    }
+                    Duration::from_secs(minutes * 60 + seconds)
                 }
             }
         }
         "h" => {
             let parts = duration.split(':').collect::<Vec<&str>>();
 
-            match parts.len()
-            {
+            match parts.len() {
                 1 => {
-                    let hours = match parts[0].parse::<i64>() {
+                    
+                    let hours = match parts[0].parse::<u64>() {
                         Ok(hours) => hours,
                         Err(e) => {
-                            send_parse_error(ctx, e).await?;
-                            return Ok(0)
+                            send_error_msg(ctx, &e.to_string()).await.unwrap();
+                            return Ok(0);
                         }
                     };
-
-                    match Duration::try_seconds(hours * 60 * 60) {
-                        Some(duration) => {
-                            
-                            return Ok(duration.num_seconds())
-                        }
-                        None => {
-                            return Ok(0)
-                        }
-                    }
+                    Duration::from_secs(hours * 60 * 60)
                 }
                 2 => {
-                    let hours = match parts[0].parse::<i64>() {
+                    let hours = match parts[0].parse::<u64>() {
                         Ok(hours) => hours,
                         Err(e) => {
-                            send_parse_error(ctx, e).await?;
-                            return Ok(0)
+                            send_error_msg(ctx, &e.to_string()).await.unwrap();
+                            return Ok(0);
                         }
                     };
-                    let minutes = match parts[0].parse::<i64>() {
-                        Ok(minutes) => minutes,
+                    let minutes = match parts[1].parse::<u64>() {
+                        Ok(min) => min,
                         Err(e) => {
-                            send_parse_error(ctx, e).await?;
-                            return Ok(0)
+                            send_error_msg(ctx, &e.to_string()).await.unwrap();
+                            return Ok(0);
                         }
                     };
-                    
-                    match Duration::try_seconds(hours * 60 * 60 + minutes * 60) {
-                        Some(duration) => {
-                            
-                            return Ok(duration.num_seconds())
-                        }
-                        None => {
-                            return Ok(0)
-                        }
-                    }
+                    Duration::from_secs(hours * 60 * 60 + minutes * 60)
                 }
                 3 => {
-                    let hours = match parts[0].parse::<i64>() {
+                    let hours = match parts[2].parse::<u64>() {
                         Ok(hours) => hours,
                         Err(e) => {
-                            send_parse_error(ctx, e).await?;
-                            return Ok(0)
+                            send_error_msg(ctx, &e.to_string()).await.unwrap();
+                            return Ok(0);
                         }
                     };
-                    let minutes = match parts[0].parse::<i64>() {
-                        Ok(minutes) => minutes,
+                    let minutes = match parts[0].parse::<u64>() {
+                        Ok(min) => min,
                         Err(e) => {
-                            send_parse_error(ctx, e).await?;
-                            return Ok(0)
+                            send_error_msg(ctx, &e.to_string()).await.unwrap();
+                            return Ok(0);
                         }
                     };
-                    let seconds = match parts[0].parse::<i64>() {
+                    let seconds = match parts[0].parse::<u64>() {
                         Ok(seconds) => seconds,
                         Err(e) => {
-                            send_parse_error(ctx, e).await?;
-                            return Ok(0)
+                            send_error_msg(ctx, &e.to_string()).await.unwrap();
+                            return Ok(0);
                         }
                     };
-
-                    match Duration::try_seconds(hours * 60 * 60 + minutes * 60 + seconds) {
-                        Some(duration) => {
-                            
-                            return Ok(duration.num_seconds())
-                        }
-                        None => {
-                            return Ok(0)
-                        }
-                    }
-
+                    Duration::from_secs(hours * 60 * 60 + minutes * 60 + seconds)
                 }
                 _ => {
-                    let hours = match parts[0].parse::<i64>() {
+                    let hours = match parts[0].parse::<u64>() {
                         Ok(hours) => hours,
                         Err(e) => {
-                            send_parse_error(ctx, e).await?;
-                            return Ok(0)
+                            send_error_msg(ctx, &e.to_string()).await.unwrap();
+                            return Ok(0);
                         }
                     };
-                    let minutes = match parts[0].parse::<i64>() {
-                        Ok(minutes) => minutes,
+                    let minutes = match parts[1].parse::<u64>() {
+                        Ok(min) => min,
                         Err(e) => {
-                            send_parse_error(ctx, e).await?;
-                            return Ok(0)
+                            send_error_msg(ctx, &e.to_string()).await.unwrap();
+                            return Ok(0);
                         }
                     };
-                    let seconds = match parts[0].parse::<i64>() {
+                    let seconds = match parts[2].parse::<u64>() {
                         Ok(seconds) => seconds,
                         Err(e) => {
-                            send_parse_error(ctx, e).await?;
-                            return Ok(0)
+                            send_error_msg(ctx, &e.to_string()).await.unwrap();
+                            return Ok(0);
                         }
                     };
-
-                    match Duration::try_seconds(hours * 60 * 60 + minutes * 60 + seconds) {
-                        Some(duration) => {
-                            
-                            return Ok(duration.num_seconds())
-                        }
-                        None => {
-                            return Ok(0)
-                        }
-                    }
-
+                    Duration::from_secs(hours * 60 * 60 + minutes * 60 + seconds)
                 }
             }
         }
@@ -259,23 +189,41 @@ pub async fn duration_timer(
         }
     };
 
+    let current_time_since_epoch = Utc::now().timestamp();
+
+    let duration_in_seconds = c_duration.as_secs() as i64;
+
+    let timestamp = current_time_since_epoch + duration_in_seconds;
+
+    Ok(timestamp)
+
+
 }
 
-pub async fn set_timestamp(ctx: Context<'_>, unit: String, duration: String) -> Result<(), Error> {
+pub async fn set_timestamp(ctx: Context<'_>, unit: String, duration: String) -> Result<i64, Error> {
 
-    let c_duration = duration_timer(ctx, unit, duration).await?;
+    let timestamp = duration_timer(ctx, unit, duration).await?;
 
-    if c_duration == 0 {
+    if timestamp == 0 {
         println!("Empty");
+        return Ok(0);
     } else {
-        println!("{}", c_duration);
-        let current_time = Utc::now();
+        
 
-        let timestamp = current_time.timestamp() + c_duration;
 
         println!("{}", timestamp);
+
+        return Ok(timestamp);
     }
     
+    
+}
+
+pub async fn send_error_msg(ctx: Context<'_>, error: &str) -> Result<(), Error> {
+    ctx.send(CreateReply::default().embed(
+        CreateEmbed::default().title("Error").description(format!("{}", error)).color(0xFF0000)
+    )).await?;
+
     Ok(())
 }
 

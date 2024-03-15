@@ -31,92 +31,24 @@ pub async fn set(
     #[description = "what is the unit of the timer? (only s, m, and h are supported)"] unit: String,
     #[description = "what is the duration of the timer? e.g. (if m, 10, 50, 20:40, 10:10)"] number: String,
 ) -> Result<(), Error> {
-    let duration = match unit.as_str() {
-        "s" => {
-            let parts = number.split(':').collect::<Vec<&str>>();
-
-            match parts.len() {
-                1 => {
-                    let seconds = parts[0].parse::<u64>().unwrap();
-                    Duration::from_secs(seconds)
-                }
-                _ => {
-                    let seconds = parts[0].parse::<u64>().unwrap();
-                    Duration::from_secs(seconds)
-                }
+    
+    let timestamp = match duration_timer::set_timestamp(ctx, unit, number).await {
+        Ok(timestamp) => {
+            if timestamp == 0 {
+                return Ok(());
+            } else {
+                timestamp
             }
         }
-        "m" => {
-            let parts = number.split(':').collect::<Vec<&str>>();
-
-            match parts.len() {
-                1 => {
-                    let seconds = parts[0].parse::<u64>().unwrap();
-                    Duration::from_secs(seconds * 60)
-                }
-                2 => {
-                    let minutes = parts[0].parse::<u64>().unwrap();
-                    let seconds = parts[1].parse::<u64>().unwrap();
-
-                    Duration::from_secs(minutes * 60 + seconds)
-                }
-                _ => {
-                    let minutes = parts[0].parse::<u64>().unwrap();
-                    let seconds = parts[1].parse::<u64>().unwrap();
-
-                    Duration::from_secs(minutes * 60 + seconds)
-                }
-            }
-        }
-        "h" => {
-            let parts = number.split(':').collect::<Vec<&str>>();
-
-            match parts.len() {
-                1 => {
-                    let hours = parts[0].parse::<u64>().unwrap();
-                    Duration::from_secs(hours * 60 * 60)
-                }
-                2 => {
-                    let hours = parts[0].parse::<u64>().unwrap();
-                    let minutes = parts[1].parse::<u64>().unwrap();
-                    Duration::from_secs(hours * 60 * 60 + minutes * 60)
-                }
-                3 => {
-                    let hours = parts[0].parse::<u64>().unwrap();
-                    let minutes = parts[1].parse::<u64>().unwrap();
-                    let seconds = parts[2].parse::<u64>().unwrap();
-                    Duration::from_secs(hours * 60 * 60 + minutes * 60 + seconds)
-                }
-                _ => {
-                    let hours = parts[0].parse::<u64>().unwrap();
-                    let minutes = parts[1].parse::<u64>().unwrap();
-                    let seconds = parts[2].parse::<u64>().unwrap();
-                    Duration::from_secs(hours * 60 * 60 + minutes * 60 + seconds)
-                }
-            }
-        }
-        _ => {
-            ctx.send(CreateReply::default().embed(
-                CreateEmbed::default()
-                .title("Error")
-                .description("Invalid unit. Only s, m, and h are supported")
-                .color(0xFF0000)
-            ).ephemeral(true)).await?;
+        Err(e) => {
+            println!("Error: {}", e);
             return Ok(());
         }
     };
 
-    duration_timer::set_timestamp(ctx, unit, number).await.unwrap();
+    let database = Database::new().await.unwrap();
 
-    let current_time_since_epoch = Utc::now().timestamp();
-
-    let duration_in_seconds = duration.as_secs() as i64;
-
-    let timestamp = current_time_since_epoch + duration_in_seconds;
-
-    let database = Database::new("timer.db").unwrap();
-
-    database.create_table_timer().unwrap();
+    database.create_table().await.unwrap();
 
     let user_id = ctx.author().id;
     let dm_channel = ctx.author().create_dm_channel(&ctx).await?;
@@ -134,13 +66,13 @@ pub async fn set(
     )).await?;
 
     database
-        .insert_timer(
+        .insert(
             user_id.to_string().parse::<i64>().unwrap(),
             &description,
             timestamp,
             dm_channel.id.to_string().parse::<i64>().unwrap(),
-            0,
         )
+        .await
         .unwrap();
 
     tokio::time::sleep(Duration::from_secs(10)).await;
@@ -152,11 +84,11 @@ pub async fn set(
 
 #[poise::command(prefix_command, slash_command)]
 pub async fn list(ctx: Context<'_>) -> Result<(), Error> {
-    let database = Database::new("timer.db").unwrap();
+    let database = Database::new().await.unwrap();
 
-    database.create_table_timer().unwrap();
+    database.create_table().await.unwrap();
 
-    match database.read_timer_by_uid(ctx.author().id.to_string().parse::<i64>().unwrap()) {
+    match database.read_by_uid(ctx.author().id.to_string().parse::<i64>().unwrap()).await {
         Ok(data) => {
             if data.is_empty() {
                 ctx.say("No timers found").await?;
@@ -165,13 +97,14 @@ pub async fn list(ctx: Context<'_>) -> Result<(), Error> {
             let mut counter = 0;
             let mut list_string = String::new();
 
-            for (id, _, description, time, _, _) in data {
+
+            for timer_record in data {
                 counter += 1;
-                // Append the formatted entry to the list string
+
                 list_string.push_str(&format!(
                     "{}. id: {} | description: {} | time: <t:{}:R>\n",
-                    counter, id, description, time
-                ));
+                    counter, timer_record.id, timer_record.description, timer_record.duration
+                )); 
             }
 
             println!("{}", list_string);
@@ -192,16 +125,18 @@ pub async fn list(ctx: Context<'_>) -> Result<(), Error> {
     Ok(())
 }
 
+
+
 #[poise::command(prefix_command, slash_command)]
 pub async fn delete(
     ctx: Context<'_>,
-    #[description = "what is the id of the timer you want to delete?"] data_id: i64,
+    #[description = "what is the id of the timer you want to delete?"] data_id: i32,
 ) -> Result<(), Error> {
-    let database = Database::new("timer.db").unwrap();
+    let database = Database::new().await.unwrap();
 
-    database.create_table_timer().unwrap();
+    database.create_table().await.unwrap();
 
-    match database.read_timer_by_uid(ctx.author().id.to_string().parse::<i64>().unwrap()) {
+    match database.read_by_uid(ctx.author().id.to_string().parse::<i64>().unwrap()).await {
         Ok(data) => {
             if data.is_empty() {
                 ctx.say("No timers found").await?;
@@ -209,19 +144,20 @@ pub async fn delete(
 
             let mut found = false;
 
-            for (id, _, _, _, _, _) in data {
-                if id == data_id {
-                    database.delete_timer(id).unwrap();
+
+
+            for timer_record in data {
+                if timer_record.id == data_id {
+                    database.delete_by_id(timer_record.id).await.unwrap();
                     found = true;
                     break;
-                } else if id > data_id {
+                } else if timer_record.id > data_id {
                     continue;
-                } else if id < data_id {
+                } else if timer_record.id < data_id {
                     continue;
                 } else {
                     continue;
                 }
-                
             }
 
             if !found {
