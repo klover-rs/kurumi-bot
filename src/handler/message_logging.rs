@@ -22,10 +22,10 @@ pub async fn handle_messages(message: &Message , _framework: FrameworkContext<'_
 
     if message.author.bot { return Ok(()); }
 
-    let msg_id = message.id.to_string().parse::<u64>().unwrap();
-    let guild_id = message.guild_id.unwrap().to_string().parse::<u64>().unwrap();
-    let channel_id = message.channel_id.to_string().parse::<u64>().unwrap();
-    let author_id = message.author.id.to_string().parse::<u64>().unwrap();
+    let msg_id = message.id.to_string().parse::<i64>().unwrap();
+    let guild_id = message.guild_id.unwrap().to_string().parse::<i64>().unwrap();
+    let channel_id = message.channel_id.to_string().parse::<i64>().unwrap();
+    let author_id = message.author.id.to_string().parse::<i64>().unwrap();
     let content = message.content.clone();
     let attachments = message.attachments.clone();
 
@@ -39,11 +39,11 @@ pub async fn handle_messages(message: &Message , _framework: FrameworkContext<'_
 
     println!("{}: {}\nmessage id: {}", message.author.name, message.content, message.id.to_string());
 
-    let db = Database::new("moderation_logs.db")?;
+    let db = Database::new().await?;
 
-    db.create_table_logs()?;
+    db.create_table_msg_logs().await?;
 
-    db.insert_log(msg_id, guild_id, channel_id, author_id, &content, None)?;
+    db.insert_msg_logs(msg_id, guild_id, channel_id, author_id, &content, None).await?;
 
     Ok(())
 }
@@ -51,14 +51,14 @@ pub async fn handle_messages(message: &Message , _framework: FrameworkContext<'_
 pub async fn deleted_messages_handler(message_id: &MessageId, ctx: &serenity::Context) -> Result<(), Error> {
     println!("deleted message: {}", message_id);
 
-    let db = Database::new("moderation_logs.db")?;
+    let db = Database::new().await?;
 
-    let message: Vec<(u64, u64, u64, u64, String)> = db.read_logs_by_id(message_id.to_string().parse().unwrap())?;
+    let message = db.read_logs_by_id(message_id.to_string().parse().unwrap()).await?;
 
     if message.is_empty() {
         println!("message not found");
         return Ok(());
-    } else if message[0].3 == get_secret("BOT_ID").parse::<u64>().unwrap() {
+    } else if message[0].author_id == get_secret("BOT_ID").parse::<i64>().unwrap() {
         println!("bot message");
         return Ok(());
     }
@@ -70,11 +70,11 @@ pub async fn deleted_messages_handler(message_id: &MessageId, ctx: &serenity::Co
     channel_id.send_message(&ctx.http, CreateMessage::default().add_embed(
         CreateEmbed::default()
             .title("Deleted message")
-            .description(format!("`{}`", message[0].4))
-            .field("Channel", format!("<#{}>", message[0].2), false)
-            .field("Author", format!("<@{}>", message[0].3), false)
+            .description(format!("`{}`", message[0].content))
+            .field("Channel", format!("<#{}>", message[0].channel_id), false)
+            .field("Author", format!("<@{}>", message[0].author_id), false)
             
-            .footer(CreateEmbedFooter::new(format!("msg id: {}", message[0].0)))
+            .footer(CreateEmbedFooter::new(format!("msg id: {}", message[0].msg_id)))
             .color(0xFF0000)
             
     )).await?;
@@ -84,14 +84,14 @@ pub async fn deleted_messages_handler(message_id: &MessageId, ctx: &serenity::Co
 
 pub async fn edited_messages_handler(message_id: &MessageId, new_message: &str, ctx: &serenity::Context) -> Result<(), Error> {
     
-    let db = Database::new("moderation_logs.db")?;
+    let db = Database::new().await?;
 
-    let message: Vec<(u64, u64, u64, u64, String)> = db.read_logs_by_id(message_id.to_string().parse().unwrap())?;
+    let message = db.read_logs_by_id(message_id.to_string().parse().unwrap()).await?;
 
     if message.is_empty() {
         println!("message not found");
         return Ok(());
-    } else if message[0].3 == get_secret("BOT_ID").parse::<u64>().unwrap() {
+    } else if message[0].author_id == get_secret("BOT_ID").parse::<i64>().unwrap() {
         println!("bot message");
         return Ok(());
     }
@@ -106,15 +106,15 @@ pub async fn edited_messages_handler(message_id: &MessageId, new_message: &str, 
     channel_id.send_message(&ctx.http, CreateMessage::default().add_embed(
         CreateEmbed::default()
             .title("Edited message")
-            .description(format!("**new message**:\n`{}`\n**old message**:\n`{}`", new_message, message[0].4))
-            .field("Channel", format!("<#{}>", message[0].2), false)
-            .field("Author", format!("<@{}>", message[0].3), false)
-            .footer(CreateEmbedFooter::new(format!("msg id: {}", message[0].0)))
+            .description(format!("**new message**:\n`{}`\n**old message**:\n`{}`", new_message, message[0].content))
+            .field("Channel", format!("<#{}>", message[0].channel_id), false)
+            .field("Author", format!("<@{}>", message[0].author_id), false)
+            .footer(CreateEmbedFooter::new(format!("msg id: {}", message[0].msg_id)))
             .timestamp(current_timestamp)
             .color(0x0787F7)
     )).await?;
 
-    db.update_log_content(message_id.to_string().parse().unwrap(), &new_message)?; 
+    db.update_logs_by_id(message_id.to_string().parse().unwrap(), &new_message).await?; 
 
     Ok(())
 
