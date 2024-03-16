@@ -1,6 +1,6 @@
 use crate::db::timer::Database;
 use chrono::Utc;
-use std::{fs, thread::current};
+use std::fs;
 use serde_json::{json, Value};
 use reqwest::Client;
 use tokio::task;
@@ -15,51 +15,45 @@ pub async fn check_timer() {
 
     let db_clone = Arc::clone(&db);
 
-    std::thread::spawn(move || {
+    task::spawn(async move {
         let database = db_clone;
 
-        let rt = tokio::runtime::Runtime::new().unwrap();
-
         loop {
+            match database.read().await {
+                Ok(data) => {
 
-            rt.block_on(async {
-                match database.read().await {
-                    Ok(data) => {
-    
-                        let current_timestamp = Utc::now().timestamp();
-    
-                        for timer_recs in data {
-                            if current_timestamp >= timer_recs.duration {
-                                println!("Timer expired: {}", timer_recs.uid);
-                                
-    
-                                let embed = json!({
-                                    "title": "Timer expired",
-                                    "description": "the timer expired",
-                                    "color": 16711680, 
-                                    "fields": [
-                                        {"name": "Description", "value": timer_recs.description},
-                                        {"name": "User", "value": format!("<@{}>", timer_recs.uid)}
-                                    ]
-                                });
-    
-                                database.delete_by_id(timer_recs.id).await.unwrap();
-    
-                                if let Err(err) = send_message(&timer_recs.dm_channel.to_string(), &format!("<@{}>", timer_recs.uid), Some(embed)).await {
-                                    println!("Failed to send message: {:?}", err);
-                                }
+                    let current_timestamp = Utc::now().timestamp();
+
+                    for timer_recs in data {
+                        if current_timestamp >= timer_recs.duration {
+                            println!("Timer expired: {}", timer_recs.uid);
+                            
+
+                            let embed = json!({
+                                "title": "Timer expired",
+                                "description": "the timer expired",
+                                "color": 16711680, 
+                                "fields": [
+                                    {"name": "Description", "value": timer_recs.description},
+                                    {"name": "User", "value": format!("<@{}>", timer_recs.uid)}
+                                ]
+                            });
+
+                            database.delete_by_id(timer_recs.id).await.unwrap();
+
+                            if let Err(err) = send_message(&timer_recs.dm_channel.to_string(), &format!("<@{}>", timer_recs.uid), Some(embed)).await {
+                                println!("Failed to send message: {:?}", err);
                             }
                         }
                     }
-                    Err(err) => {
-                        println!("Error: {:?}", err);
-                    }
                 }
-            });
-
-            std::thread::sleep(std::time::Duration::from_millis(250));
+                Err(err) => {
+                    println!("Error: {:?}", err);
+                }
+            }
         }
     });
+
 }
 
 async fn get_token() -> String {
