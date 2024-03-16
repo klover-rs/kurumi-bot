@@ -5,7 +5,6 @@ use poise::serenity_prelude::{Error as PoiseError, ModelError};
 use serenity::model::id::{UserId, GuildId};
 
 use poise::CreateReply;
-use serenity::builder::CreateEmbed;
 
 use serenity::model::guild::Member;
 
@@ -104,14 +103,6 @@ pub async fn unban(
 async fn get_member(ctx: &Context<'_>, guild_id: GuildId, user_id: UserId) -> Option<Member> {
     if let Some(member) = guild_id.member(&ctx, user_id).await.ok() {
         Some(member)
-    } else {
-        guild_id.member(&ctx, user_id).await.ok()
-    }
-}
-
-async fn get_guild_member(ctx: &Context<'_>, guild_id: GuildId, user_id: UserId) -> Option<serenity::model::guild::Member> {
-    if let Some(_) = guild_id.unban(&ctx, user_id).await.ok() {
-        Some(guild_id.member(&ctx, user_id).await.ok().unwrap())
     } else {
         guild_id.member(&ctx, user_id).await.ok()
     }

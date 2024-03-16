@@ -1,9 +1,6 @@
 use poise::serenity_prelude as serenity;
 use chrono::Utc;
-use std::time::{self, Duration};
-
-
-use std::num::ParseIntError;
+use std::time::Duration;
 
 use serenity::builder::CreateEmbed;
 use poise::CreateReply;
@@ -227,8 +224,3 @@ pub async fn send_error_msg(ctx: Context<'_>, error: &str) -> Result<(), Error> 
     Ok(())
 }
 
-pub async fn send_parse_error(ctx: Context<'_>, error: ParseIntError) -> Result<(), Error> {
-    ctx.send(CreateReply::default().content(format!("parse error\n{}", error))).await?;
-
-    Ok(())
-}

@@ -2,10 +2,8 @@ use poise::serenity_prelude as serenity;
 
 use serenity::model::channel::ReactionType;
 use regex::Regex;
-use crate::{
-    Data,
-    Error
-};
+use crate::Error;
+
 
 use serenity::Message;
 
