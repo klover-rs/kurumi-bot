@@ -23,7 +23,13 @@ pub async fn handle_messages(message: &Message , _framework: FrameworkContext<'_
     if message.author.bot { return Ok(()); }
 
     let msg_id = message.id.to_string().parse::<i64>().unwrap();
-    let guild_id = message.guild_id.unwrap().to_string().parse::<i64>().unwrap();
+    let guild_id = match message.guild_id {
+        Some(id) => id.to_string().parse::<i64>().unwrap(),
+        None => {
+            println!("action is not involved with a guild (likely a dm)");
+            return Ok(());
+        }
+    };
     let channel_id = message.channel_id.to_string().parse::<i64>().unwrap();
     let author_id = message.author.id.to_string().parse::<i64>().unwrap();
     let content = message.content.clone();
@@ -43,7 +49,7 @@ pub async fn handle_messages(message: &Message , _framework: FrameworkContext<'_
 
     db.create_table_msg_logs().await?;
 
-    db.insert_msg_logs(msg_id, guild_id, channel_id, author_id, &content, None).await?;
+    db.insert_msg_logs(msg_id, guild_id, channel_id, author_id, &content, urls).await?;
 
     Ok(())
 }
@@ -70,10 +76,9 @@ pub async fn deleted_messages_handler(message_id: &MessageId, ctx: &serenity::Co
     channel_id.send_message(&ctx.http, CreateMessage::default().add_embed(
         CreateEmbed::default()
             .title("Deleted message")
-            .description(format!("`{}`", message[0].content))
+            .description(format!("`{}`\n{}", message[0].content, message[0].attachments.split(", ").collect::<Vec<&str>>().join("\n")))
             .field("Channel", format!("<#{}>", message[0].channel_id), false)
             .field("Author", format!("<@{}>", message[0].author_id), false)
-            
             .footer(CreateEmbedFooter::new(format!("msg id: {}", message[0].msg_id)))
             .color(0xFF0000)
             

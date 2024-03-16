@@ -2,6 +2,8 @@ use bb8::Pool;
 use bb8_postgres::PostgresConnectionManager;
 use tokio_postgres::{NoTls, Error, Row};
 
+use crate::secrets::get_secret;
+
 pub struct Database {
     pool: Pool<PostgresConnectionManager<NoTls>>,
 }
@@ -12,12 +14,13 @@ pub struct MsgLogs {
     pub channel_id: i64,
     pub author_id: i64,
     pub content: String,
+    pub attachments: String,
 }
 
 impl Database {
     pub async fn new() -> Result<Self, Error> {
         let manager = PostgresConnectionManager::new_from_stringlike(
-            "host=localhost user=postgres password=7522",
+            format!("host=localhost user=postgres password={}", get_secret("DB_PW")),
             NoTls,
         ).expect("Failed to create connection manager");
 
@@ -33,7 +36,8 @@ impl Database {
                 guild_id BIGINT,
                 channel_id BIGINT,
                 author_id BIGINT,
-                content TEXT
+                content TEXT,
+                attachments TEXT
             )", &[],
         ).await?;
 
@@ -42,14 +46,22 @@ impl Database {
 
     }
 
-    pub async fn insert_msg_logs(&self, msg_id: i64, guild_id: i64, channel_id: i64, author_id: i64, content: &str, attachments: Option<String>) -> Result<(), Error> {
+    pub async fn insert_msg_logs(&self, msg_id: i64, guild_id: i64, channel_id: i64, author_id: i64, content: &str, attachments: Vec<String>) -> Result<(), Error> {
         let mut conn = self.pool.get().await.unwrap();
+
+        
+
+        let attachment_string = match attachments.len() {
+            0 => "".to_string(), // Return an empty string if the attachments vector is empty
+            _ => attachments.join(","), // Join the attachments into a single string separated by ","
+        };
+    
 
         let trans = conn.transaction().await?;
 
         trans.execute(
-            "INSERT INTO msg_logs (msg_id, guild_id, channel_id, author_id, content) VALUES ($1, $2, $3, $4, $5)",
-            &[&msg_id, &guild_id, &channel_id, &author_id, &content],
+            "INSERT INTO msg_logs (msg_id, guild_id, channel_id, author_id, content, attachments) VALUES ($1, $2, $3, $4, $5, $6)",
+            &[&msg_id, &guild_id, &channel_id, &author_id, &content, &attachment_string],
         ).await?;
 
         
@@ -57,7 +69,7 @@ impl Database {
 
         if row_count > 1000 {
             trans.execute(
-                "DELETE FROM logs WHERE msg_id = (SELECT msg_id FROM logs ORDER BY msg_id ASC LIMIT 1)",
+                "DELETE FROM msg_logs WHERE msg_id = (SELECT msg_id FROM logs ORDER BY msg_id ASC LIMIT 1)",
                 &[],
             ).await?;
         }
@@ -105,6 +117,7 @@ fn parse_msg_logs_record(row: Row) -> Result<MsgLogs, Error> {
         guild_id: row.try_get(1)?,
         channel_id: row.try_get(2)?,
         author_id: row.try_get(3)?,
-        content: row.try_get(4)?
+        content: row.try_get(4)?,
+        attachments: row.try_get(5)?,
     })
 }
