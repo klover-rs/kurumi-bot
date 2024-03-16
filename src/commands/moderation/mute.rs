@@ -1,18 +1,14 @@
-use crate::{Context, Data, Error};
+use crate::{Context, Error};
 use poise::serenity_prelude as serenity;
-use poise::serenity_prelude::{Error as PoiseError, ModelError};
 
 use serenity::model::id::{UserId, GuildId};
 
 use serenity::builder::CreateEmbed;
 use poise::CreateReply;
 
-use chrono::{Utc, Duration};
-use systemstat::data;
-
 use crate::db::moderation::muted::Database;
 
-use crate::commands::components::duration_timer::{self, duration_timer};
+use crate::commands::components::duration_timer::set_timestamp;
 
 use serenity::model::guild::Member;
 
@@ -33,7 +29,7 @@ pub async fn mute(
 
     
     
-    let timestamp = match duration_timer::set_timestamp(ctx, unit, duration).await {
+    let timestamp = match set_timestamp(ctx, unit, duration).await {
         Ok(timestamp) => {
             if timestamp == 0 {
                 return Ok(());

@@ -1,5 +1,4 @@
 use crate::{Context, Error};
-use chrono::Utc;
 
 use crate::db::timer::Database;
 

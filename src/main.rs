@@ -1,6 +1,3 @@
-use std::env::var;
-use std::sync::atomic::{AtomicU32, Ordering};
-
 use poise::serenity_prelude as serenity;
 
 mod secrets;
@@ -13,6 +10,7 @@ mod rich_presence;
 mod events;
 
 use commands::{help::*, info::*, moderation::{ban::{ban, unban}, kick::kick, mute::mute}, rps::*, timer::*, utils::*};
+use rich_presence::discord_rpc;
 
 // Types used by all command functions
 type Error = Box<dyn std::error::Error + Send + Sync>;
@@ -51,8 +49,11 @@ async fn main() {
         .setup(move |_ctx, _ready, _framework| {
             Box::pin(async move {
                 poise::builtins::register_globally(_ctx, &_framework.options().commands).await?;
-                events::timer::check_timer().await;
-                events::moderation::check_mutes().await.unwrap();
+                {
+                    events::timer::check_timer().await;
+                    events::moderation::check_mutes().await;
+                }
+                discord_rpc().await?;
                 Ok(Data {})
             })
         })
@@ -77,7 +78,7 @@ async fn event_handler(
     ctx: &serenity::Context,
     event: &serenity::FullEvent,
     _framework: poise::FrameworkContext<'_, Data, Error>,
-    data: &Data,
+    _data: &Data,
 ) -> Result<(), Error> {
     match event {
         serenity::FullEvent::Ready { data_about_bot, .. } => {
@@ -88,11 +89,11 @@ async fn event_handler(
             handler::message_logging::handle_messages(new_message, _framework).await.unwrap();
             handler::messages_reactions::message_reactions(new_message, &ctx).await?;
         }
-        serenity::FullEvent::MessageDelete { channel_id, deleted_message_id, guild_id } => {
+        serenity::FullEvent::MessageDelete { channel_id: _, deleted_message_id, guild_id } => {
             println!("deleted this message: {} in guild: {}", deleted_message_id, guild_id.unwrap());
             handler::message_logging::deleted_messages_handler(&deleted_message_id, &ctx).await.unwrap();
         }
-        serenity::FullEvent::MessageUpdate { old_if_available, new, event } => {
+        serenity::FullEvent::MessageUpdate { old_if_available: _, new: _, event } => {
             
             println!("edited message: {:?}\nid: {}", event.content, event.id.to_string());
 
