@@ -1,4 +1,4 @@
-use crate::db::timer::Database;
+use crate::{db::timer::Database, secrets::get_secret};
 use chrono::Utc;
 use std::fs;
 use serde_json::{json, Value};
@@ -57,23 +57,6 @@ pub async fn check_timer() {
 
 }
 
-async fn get_token() -> String {
-    let contents = fs::read_to_string("Secrets.toml").unwrap();
-
-    let data: toml::Value = contents.parse().unwrap();
-
-    let discord_token = match data.get("DISCORD_TOKEN") {
-        Some(token) => match token.as_str() {
-            Some(token_str) => token_str,
-            None => panic!("DISCORD_TOKEN value is not a string"),
-        },
-        None => panic!("DISCORD_TOKEN key not found"),
-    };
-
-    println!("DISCORD_TOKEN: {}", discord_token);
-    discord_token.to_string()
-
-}
 
 async fn send_message(channel_id: &str, message: &str, embed: Option<Value>) -> Result<(), reqwest::Error> {
     let client = Client::new();
@@ -89,7 +72,7 @@ async fn send_message(channel_id: &str, message: &str, embed: Option<Value>) -> 
     }
 
     let response = client.post(&url)
-        .header("Authorization", format!("Bot {}", get_token().await))
+        .header("Authorization", format!("Bot {}", get_secret("DISCORD_TOKEN")))
         .header("Content-Type", "application/json")
         .json(&json_body)
         .send()
