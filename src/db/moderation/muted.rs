@@ -1,7 +1,7 @@
 use bb8::Pool;
 use bb8_postgres::PostgresConnectionManager;
 use tokio_postgres::{NoTls, Error, Row};
-
+use crate::secrets::get_secret;
 pub struct Database {
     pool: Pool<PostgresConnectionManager<NoTls>>,
 }
@@ -20,7 +20,7 @@ impl Database {
     // Initialize the connection pool
     pub async fn new() -> Result<Self, Error> {
         let manager = PostgresConnectionManager::new_from_stringlike(
-            "host=localhost user=postgres password=7522",
+            format!("host=localhost user=postgres password={}", get_secret("DB_PW")),
             NoTls,
         ).expect("Failed to create connection manager");
 
@@ -72,6 +72,23 @@ impl Database {
         }
 
         Ok(muted_records)
+    }
+
+    pub async fn read_muted_by_uid(&self, uid: i64) -> Result<Vec<Muted>, Error> {
+        let connection = self.pool.get().await.unwrap();
+
+        let statement = connection.prepare("SELECT * FROM muted WHERE uid = $1").await?;
+
+        let rows = connection.query(&statement, &[&uid]).await?;
+
+        let mut muted_records = Vec::new();
+
+        for row in rows {
+            muted_records.push(parse_muted_record(row)?);
+        }
+
+        Ok(muted_records)
+
     }
 
     pub async fn delete(&self, uid: i64) -> Result<(), Error> {

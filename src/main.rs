@@ -9,7 +9,18 @@ mod download_docs;
 mod rich_presence;
 mod events;
 
-use commands::{help::*, info::*, moderation::{ban::{ban, unban}, kick::kick, mute::mute}, rps::*, timer::*, utils::*};
+use commands::{
+    help::*, 
+    info::*, 
+    moderation::{
+        ban::{ban, unban}, 
+        kick::kick, 
+        mute::{mute, unmute},
+    },
+    rps::*, 
+    timer::*, 
+    utils::*
+};
 use rich_presence::discord_rpc;
 
 // Types used by all command functions
@@ -58,7 +69,7 @@ async fn main() {
             })
         })
         .options(poise::FrameworkOptions {
-            commands: vec![help(), info(), ban(), kick(), unban(), mute(), rock_paper_scissors(), timer(), ping()],
+            commands: vec![help(), info(), ban(), kick(), unban(), mute(), unmute(), rock_paper_scissors(), timer(), ping()],
             on_error: |error| Box::pin(on_error(error)),
             event_handler: |ctx, event, framework, data| {
                 Box::pin(event_handler(ctx, event, framework, data))

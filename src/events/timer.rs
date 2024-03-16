@@ -1,6 +1,5 @@
 use crate::{db::timer::Database, secrets::get_secret};
 use chrono::Utc;
-use std::fs;
 use serde_json::{json, Value};
 use reqwest::Client;
 use tokio::task;

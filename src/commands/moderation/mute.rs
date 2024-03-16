@@ -86,8 +86,10 @@ pub async fn mute(
             }
         }
 
-        remove_all_roles(user.id.into(), ctx.guild_id().unwrap().into()).await.unwrap();
+        //None is in this case removing ALL ROLES, SO BE CAREFUL HOW YOU USE THIS FUNCTION AND ITS ARGUMENTS PLEASE :3
+        manage_roles(None, user.id.into(), ctx.guild_id().unwrap().into()).await.unwrap();
 
+        let time_now = chrono::Utc::now();
         
         ctx.send(CreateReply::default().embed(
             CreateEmbed::default()
@@ -96,8 +98,9 @@ pub async fn mute(
             .fields(vec![
                 ("User", format!("<@{}>", user.id), true),
                 ("Reason", format!("{}", &reason), true),
-                
+                ("Muted until", format!("<t:{}:R>", timestamp), true), 
             ])
+            .timestamp(time_now)
             .color(0xFF0000)
             
         )).await?;
@@ -105,6 +108,62 @@ pub async fn mute(
     } else {
         println!("Member not found");
     }
+
+    Ok(())
+}
+
+#[poise::command(
+    prefix_command,
+    slash_command,
+    required_permissions = "KICK_MEMBERS",
+)]
+pub async fn unmute(
+    ctx: Context<'_>,
+    #[description = "user you want to unmute?"] user: serenity::User,
+) -> Result<(), Error> {
+
+    match ctx.guild_id() {
+        Some(guild_id) => guild_id,
+        None => {
+            ctx.send(CreateReply::default().content("This command can only be used in guilds").ephemeral(true)).await?;
+            return Ok(());
+        }
+    };
+
+    
+
+    let database = Database::new().await.unwrap();
+
+    match database.read_muted_by_uid(user.id.into()).await {
+        Ok(muted) => {
+            if muted.is_empty() {
+                ctx.send(CreateReply::default().content("You cant unmute a member who is not muted").ephemeral(true)).await?;
+                return Ok(());
+            } else {
+                database.delete(user.id.into()).await.unwrap();
+
+                let roles_vec: Vec<&str> = muted[0].roles.split(',').collect();
+
+                manage_roles(Some(roles_vec), user.id.into(), ctx.guild_id().unwrap().into()).await.unwrap();
+                ctx.send(CreateReply::default().embed(
+                    CreateEmbed::default()
+                        .title("Member has been unmuted")
+                        .description(format!("unmuted <@{}> successfully", user.id))
+                        .color(0x00FF00)
+                        
+                )).await?;
+
+            }
+        }
+        Err(e) => {
+            println!("Error: {:?}", e);
+            return Ok(());
+        }
+    }
+
+   
+
+
 
     Ok(())
 }
@@ -117,7 +176,7 @@ async fn get_member(ctx: &Context<'_>, guild_id: GuildId, user_id: UserId) -> Op
     }
 }
 
-async fn remove_all_roles( uid: i64, guild_id: i64) -> Result<(), reqwest::Error> {
+async fn manage_roles(roles: Option<Vec<&str>>, uid: i64, guild_id: i64) -> Result<(), reqwest::Error> {
     let client = Client::new();
 
     let url = format!("https://discord.com/api/v9/guilds/{}/members/{}", guild_id, uid);
@@ -131,8 +190,16 @@ async fn remove_all_roles( uid: i64, guild_id: i64) -> Result<(), reqwest::Error
     authorization_value.set_sensitive(true);
     headers.insert(AUTHORIZATION, authorization_value);
 
+    let roles = match roles {
+        Some(roles) => roles,
+        None => {
+            [].to_vec()
+        }
+    };
+    
+
     let body = json!({
-        "roles": []
+        "roles": roles
     });
 
     let response = client

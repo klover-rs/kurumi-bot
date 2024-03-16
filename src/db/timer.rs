@@ -2,7 +2,7 @@
 use bb8::Pool;
 use bb8_postgres::PostgresConnectionManager;
 use tokio_postgres::{NoTls, Error, Row};
-
+use crate::secrets::get_secret;
 pub struct Database {
     pool: Pool<PostgresConnectionManager<NoTls>>,
 }
@@ -21,7 +21,7 @@ impl Database {
     // Initialize the connection pool
     pub async fn new() -> Result<Self, Error> {
         let manager = PostgresConnectionManager::new_from_stringlike(
-            "host=localhost user=postgres password=7522",
+            format!("host=localhost user=postgres password={}", get_secret("DB_PW")),
             NoTls,
         ).expect("Failed to create connection manager");
 
@@ -33,10 +33,10 @@ impl Database {
         let conn = self.pool.get().await.unwrap();
         conn.execute(
             "CREATE TABLE IF NOT EXISTS timer (
-                id INTEGER PRIMARY KEY,
+                id SERIAL PRIMARY KEY,
                 uid BIGINT,
                 description TEXT,
-                duration INTEGER,
+                duration BIGINT,
                 dm_channel BIGINT
             )",
             &[],
@@ -50,7 +50,7 @@ impl Database {
         let trans = conn.transaction().await?;
 
         trans.execute(
-            "INSERT OR REPLACE INTO timer (uid, description, duration, dm_channel, bot_message_id) VALUES ($1, $2, $3, $4)",
+            "INSERT INTO timer (uid, description, duration, dm_channel) VALUES ($1, $2, $3, $4)",
             &[&uid, &description, &time, &dm_channel],
         ).await?;
 

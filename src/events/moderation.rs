@@ -23,7 +23,7 @@ pub async fn check_mutes() {
 
             match database.read_muted().await {
                 Ok(data) => {
-                    println!("data: {:?}", data);
+                    
 
                     for muted_record in data {
                         if current_timestamp >= muted_record.duration {
