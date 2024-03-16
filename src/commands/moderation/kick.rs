@@ -20,8 +20,15 @@ pub async fn kick(
     #[description = "reason for the kick?"] reason: Option<String>,
 ) -> Result<(), Error> {
 
+    let guild_id = match ctx.guild_id() {
+        Some(guild_id) => guild_id,
+        None => {
+            ctx.send(CreateReply::default().content("This command can only be used in guilds").ephemeral(true)).await?;
+            return Ok(());
+        }
+    };
 
-    let member = get_member(&ctx, ctx.guild_id().unwrap(), user.id).await;
+    let member = get_member(&ctx, guild_id, user.id).await;
 
     match member {
         Some(member) => {

@@ -6,6 +6,12 @@ use serenity::model::id::{UserId, GuildId};
 use serenity::builder::CreateEmbed;
 use poise::CreateReply;
 
+use serde_json::json;
+use reqwest::header::{HeaderMap, HeaderValue, CONTENT_TYPE, AUTHORIZATION};
+use reqwest::Client;
+
+use crate::secrets::get_secret;
+
 use crate::db::moderation::muted::Database;
 
 use crate::commands::components::duration_timer::set_timestamp;
@@ -25,6 +31,14 @@ pub async fn mute(
     #[description = "reason for the kick?"] reason: Option<String>,
 ) -> Result<(), Error> {
 
+    let guild_id = match ctx.guild_id() {
+        Some(guild_id) => guild_id,
+        None => {
+            ctx.send(CreateReply::default().content("This command can only be used in guilds").ephemeral(true)).await?;
+            return Ok(());
+        }
+    };
+
     let reason = reason.unwrap_or("N/a".to_string());
 
     
@@ -43,7 +57,7 @@ pub async fn mute(
         }
     };
 
-    let member = get_member(&ctx, ctx.guild_id().unwrap(), user.id).await;
+    let member = get_member(&ctx, guild_id, user.id).await;
 
     if let Some(member) = member {
         let roles = &member.roles;
@@ -56,7 +70,7 @@ pub async fn mute(
 
         println!("u64_values: {:?}", u64_roles);
 
-        ctx.say(format!("timestamp: <t:{:?}:R>", timestamp)).await?;
+       
 
         let database = Database::new().await.unwrap();
 
@@ -72,16 +86,21 @@ pub async fn mute(
             }
         }
 
-        member.remove_roles(&ctx.http(), &roles).await?;
+        remove_all_roles(user.id.into(), ctx.guild_id().unwrap().into()).await.unwrap();
 
+        
         ctx.send(CreateReply::default().embed(
             CreateEmbed::default()
             .title("Member has been muted")
             .description(format!("muted <@{}> successfully", user.id))
+            .fields(vec![
+                ("User", format!("<@{}>", user.id), true),
+                ("Reason", format!("{}", &reason), true),
+                
+            ])
             .color(0xFF0000)
             
         )).await?;
-
         
     } else {
         println!("Member not found");
@@ -96,4 +115,35 @@ async fn get_member(ctx: &Context<'_>, guild_id: GuildId, user_id: UserId) -> Op
     } else {
         guild_id.member(&ctx, user_id).await.ok()
     }
+}
+
+async fn remove_all_roles( uid: i64, guild_id: i64) -> Result<(), reqwest::Error> {
+    let client = Client::new();
+
+    let url = format!("https://discord.com/api/v9/guilds/{}/members/{}", guild_id, uid);
+
+    let mut headers = HeaderMap::new();
+    headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
+
+    let token = get_secret("DISCORD_TOKEN");
+
+    let mut authorization_value = HeaderValue::from_str(&format!("Bot {}", token)).unwrap();
+    authorization_value.set_sensitive(true);
+    headers.insert(AUTHORIZATION, authorization_value);
+
+    let body = json!({
+        "roles": []
+    });
+
+    let response = client
+    .patch(&url)
+    .headers(headers)
+    .json(&body)
+    .send()
+    .await?;
+
+    println!("Response: {:?}", response);
+    Ok(())
+
+
 }

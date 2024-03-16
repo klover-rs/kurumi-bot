@@ -70,6 +70,14 @@ pub async fn unban(
     #[description = "userID you want to unban?"] user: String,
 ) -> Result<(), Error>{
 
+    let guild_id = match ctx.guild_id() {
+        Some(guild_id) => guild_id,
+        None => {
+            ctx.send(CreateReply::default().content("This command can only be used in guilds").ephemeral(true)).await?;
+            return Ok(());
+        }
+    };
+
     let user_id = match user {
         s if s.parse::<u64>().is_ok() => {
             s.parse::<u64>().unwrap()
@@ -79,8 +87,6 @@ pub async fn unban(
             return Ok(())
         }
     };
-
-    let guild_id = ctx.guild_id().unwrap();
 
     match guild_id.unban(&ctx, UserId::from(user_id)).await {
         Ok(_) => {
