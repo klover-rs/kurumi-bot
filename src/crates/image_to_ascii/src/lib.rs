@@ -4,6 +4,7 @@ use fastrand::Rng;
 use std::fs;
 
 use std::path;
+use std::env;
 
 use serde_json::json;
 use std::process::{Command, Stdio};
@@ -13,6 +14,63 @@ pub enum OutputFormat {
     HTML,
 }
 
+pub fn init() {
+    if !check_if_node_is_installed() {
+        println!("\x1b[31mNode.js is not installed on this system. Please install Node.js from https://nodejs.org/en/download and try again.\x1b[0m");
+        panic!();
+    } else {
+
+        let folder_path = "./src/crates/image_to_ascii/js_src/node_modules";
+        if !std::path::Path::new(folder_path).exists() {
+
+            let original_directory = match env::current_dir() {
+                Ok(path) => path,
+                Err(err) => {
+                    eprintln!("Failed to get current directory: {}", err);
+                    return;
+                }
+            };
+
+            if let Err(err) = env::set_current_dir("./src/crates/image_to_ascii/js_src") {
+                eprintln!("Failed to change directory: {}", err);
+                return;
+            }
+
+            let output = Command::new("node")
+            .args(&["-e", "require('child_process').exec('npm install', (err, stdout, stderr) => { if (err) { console.error(err); return; } console.log(stdout); });"])
+            .output()
+            .expect("Failed to execute command");
+    
+            if output.status.success() {
+                let stdout = String::from_utf8_lossy(&output.stdout);
+                println!("npm output: {}", stdout);
+            } else {
+                let stderr = String::from_utf8_lossy(&output.stderr);
+                eprintln!("Error executing npm command: {}", stderr);
+            }
+            
+            env::set_current_dir(original_directory).unwrap();
+        }
+
+        
+    }
+}
+
+fn check_if_node_is_installed() -> bool {
+    let output = Command::new("node")
+        .arg("--version")
+        .output()
+        .expect("Failed to execute command");
+
+    if output.status.success() {
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        println!("Node.js version installed: {}", stdout);
+        true
+    } else {
+        println!("Node.js is not installed on this system.");
+        false
+    }
+}
 
 pub fn convert_to_ascii(buffer: Vec<u8>, quality: u8) -> io::Result<Vec<u8>> {
     println!("Converting  to ASCII");
