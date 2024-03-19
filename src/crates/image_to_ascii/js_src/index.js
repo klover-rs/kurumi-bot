@@ -52,6 +52,8 @@ const fs = require('fs');
 
   await browser.close();
 
+  fs.rmSync(argObject.path);
+
 
 })();
 
