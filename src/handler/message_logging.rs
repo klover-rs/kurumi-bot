@@ -84,6 +84,15 @@ pub async fn deleted_messages_handler(message_id: &MessageId, ctx: &serenity::Co
             
     )).await?;
 
+    db.create_table_deleted_msgs().await?;
+
+    let attachment_vec: Vec<String> = message[0].attachments
+    .split(", ")
+    .map(|s| s.to_owned()) // or: .map(String::from)
+    .collect();
+
+    db.insert_deleted_msgs(message[0].msg_id, message[0].guild_id, message[0].channel_id, message[0].author_id, &message[0].content, attachment_vec).await?;
+
     Ok(())
 }
 
