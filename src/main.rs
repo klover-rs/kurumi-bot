@@ -8,6 +8,7 @@ mod handler;
 mod download_docs;
 mod rich_presence;
 mod events;
+mod backend_api;
 
 use commands::{
     help::*, 
@@ -17,6 +18,7 @@ use commands::{
         kick::kick, 
         mute::{mute, unmute},
     },
+    user::image_to_ascii::image_to_ascii,
     rps::*, 
     timer::*, 
     utils::*
@@ -60,6 +62,7 @@ async fn main() {
         .setup(move |_ctx, _ready, _framework| {
             Box::pin(async move {
                 poise::builtins::register_globally(_ctx, &_framework.options().commands).await?;
+                backend_api::actix_main::start_actix_web().await;
                 {
                     events::timer::check_timer().await;
                     events::moderation::check_mutes().await;
@@ -69,7 +72,19 @@ async fn main() {
             })
         })
         .options(poise::FrameworkOptions {
-            commands: vec![help(), info(), ban(), kick(), unban(), mute(), unmute(), rock_paper_scissors(), timer(), ping()],
+            commands: vec![
+                help(),
+                info(),
+                ban(),
+                kick(),
+                unban(),
+                mute(),
+                unmute(),
+                rock_paper_scissors(),
+                timer(),
+                ping(),
+                image_to_ascii(),
+            ],
             on_error: |error| Box::pin(on_error(error)),
             event_handler: |ctx, event, framework, data| {
                 Box::pin(event_handler(ctx, event, framework, data))
