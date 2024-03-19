@@ -10,6 +10,8 @@ mod rich_presence;
 mod events;
 mod backend_api;
 
+use image_to_ascii::init as image_to_ascii_init;
+
 use commands::{
     help::*, 
     info::*, 
@@ -18,7 +20,10 @@ use commands::{
         kick::kick, 
         mute::{mute, unmute},
     },
-    user::image_to_ascii::image_to_ascii,
+    user::{
+        image_to_ascii::image_to_ascii,
+        snipe::snipe
+    },
     rps::*, 
     timer::*, 
     utils::*
@@ -53,6 +58,7 @@ async fn on_error(error: poise::FrameworkError<'_, Data, Error>) {
 #[tokio::main]
 async fn main() {
     env_logger::init();
+    image_to_ascii_init();
 
     let token = secrets::get_secret("DISCORD_TOKEN");
     let intents =
@@ -84,6 +90,7 @@ async fn main() {
                 timer(),
                 ping(),
                 image_to_ascii(),
+                snipe()
             ],
             on_error: |error| Box::pin(on_error(error)),
             event_handler: |ctx, event, framework, data| {
