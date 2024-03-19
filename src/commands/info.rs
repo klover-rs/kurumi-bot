@@ -1,4 +1,4 @@
-use crate::{Context, Error};
+use crate::{secrets, Context, Error};
 
 use crate::utils::system_usage;
 use reqwest::Client;
@@ -62,22 +62,7 @@ struct UserInfo {
     username: String,
     avatar: String,
 }
-fn get_token() -> String {
-    let contents = fs::read_to_string("Secrets.toml").unwrap();
 
-    let data: toml::Value = contents.parse().unwrap();
-
-    let discord_token = match data.get("DISCORD_TOKEN") {
-        Some(token) => match token.as_str() {
-            Some(token_str) => token_str,
-            None => panic!("DISCORD_TOKEN value is not a string"),
-        },
-        None => panic!("DISCORD_TOKEN key not found"),
-    };
-
-    println!("DISCORD_TOKEN: {}", discord_token);
-    discord_token.to_string()
-}
 
 async fn fetch_user_info(user_id: &str) -> Result<UserInfo, Box<dyn std::error::Error>> {
     let url = format!("https://discord.com/api/v9/users/{}", user_id);
@@ -85,7 +70,7 @@ async fn fetch_user_info(user_id: &str) -> Result<UserInfo, Box<dyn std::error::
 
     let response = client
         .get(&url)
-        .header("Authorization", format!("Bot {}", get_token()))
+        .header("Authorization", format!("Bot {}", secrets::get_secret("DISCORD_TOKEN")))
         .send()
         .await?;
 
