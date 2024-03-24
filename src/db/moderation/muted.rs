@@ -1,11 +1,10 @@
+use crate::secrets::get_secret;
 use bb8::Pool;
 use bb8_postgres::PostgresConnectionManager;
-use tokio_postgres::{NoTls, Error, Row};
-use crate::secrets::get_secret;
+use tokio_postgres::{Error, NoTls, Row};
 pub struct Database {
     pool: Pool<PostgresConnectionManager<NoTls>>,
 }
-
 
 #[derive(Debug)]
 pub struct Muted {
@@ -20,40 +19,54 @@ impl Database {
     // Initialize the connection pool
     pub async fn new() -> Result<Self, Error> {
         let manager = PostgresConnectionManager::new_from_stringlike(
-            format!("host=localhost user=postgres password={}", get_secret("DB_PW")),
+            format!(
+                "host=localhost user=postgres password={}",
+                get_secret("DB_PW")
+            ),
             NoTls,
-        ).expect("Failed to create connection manager");
+        )
+        .expect("Failed to create connection manager");
 
-        let pool = Pool::builder().build(manager).await.expect("Failed to build pool");
+        let pool = Pool::builder()
+            .build(manager)
+            .await
+            .expect("Failed to build pool");
         Ok(Database { pool })
     }
 
-    pub async fn create_table(&self) -> Result<(), Error> { // Note the change in the return type here
+    pub async fn create_table(&self) -> Result<(), Error> {
+        // Note the change in the return type here
         let conn = self.pool.get().await.unwrap();
         conn.execute(
             "CREATE TABLE IF NOT EXISTS muted (
                 uid BIGINT PRIMARY KEY,
                 guild_id BIGINT,
                 reason TEXT,
-                roles TEXT,
-                duration BIGINT
+                duration TEXT
             )",
             &[],
-        ).await?;
+        )
+        .await?;
         Ok(())
     }
 
-    pub async fn insert(&self, uid: i64, guild_id: i64, reason: &str, roles: Vec<u64>, duration: i64) -> Result<(), Error> {
+    pub async fn insert(
+        &self,
+        uid: i64,
+        guild_id: i64,
+        reason: &str,
+        duration: String,
+    ) -> Result<(), Error> {
         let mut conn = self.pool.get().await.unwrap();
-
-        let roles_str = roles.iter().map(|&role| role.to_string()).collect::<Vec<String>>().join(",");
 
         let trans = conn.transaction().await?;
 
-        trans.execute(
-            "INSERT INTO muted (uid, guild_id, reason, roles, duration) VALUES ($1, $2, $3, $4, $5)",
-            &[&uid, &guild_id, &reason, &roles_str, &duration],
-        ).await?;
+        trans
+            .execute(
+                "INSERT INTO muted (uid, guild_id, reason, duration) VALUES ($1, $2, $3, $4, $5)",
+                &[&uid, &guild_id, &reason, &duration],
+            )
+            .await?;
 
         trans.commit().await?;
         Ok(())
@@ -77,7 +90,9 @@ impl Database {
     pub async fn read_muted_by_uid(&self, uid: i64) -> Result<Vec<Muted>, Error> {
         let connection = self.pool.get().await.unwrap();
 
-        let statement = connection.prepare("SELECT * FROM muted WHERE uid = $1").await?;
+        let statement = connection
+            .prepare("SELECT * FROM muted WHERE uid = $1")
+            .await?;
 
         let rows = connection.query(&statement, &[&uid]).await?;
 
@@ -88,7 +103,6 @@ impl Database {
         }
 
         Ok(muted_records)
-
     }
 
     pub async fn delete(&self, uid: i64) -> Result<(), Error> {
@@ -96,12 +110,13 @@ impl Database {
 
         let trans = conn.transaction().await?;
 
-        trans.execute("DELETE FROM muted WHERE uid = $1", &[&uid]).await?;
+        trans
+            .execute("DELETE FROM muted WHERE uid = $1", &[&uid])
+            .await?;
 
         trans.commit().await?;
         Ok(())
     }
-
 }
 
 fn parse_muted_record(row: Row) -> Result<Muted, Error> {
