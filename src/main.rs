@@ -8,7 +8,6 @@ mod handler;
 mod download_docs;
 mod rich_presence;
 mod events;
-mod backend_api;
 
 use image_to_ascii::init as image_to_ascii_init;
 
@@ -68,7 +67,6 @@ async fn main() {
         .setup(move |_ctx, _ready, _framework| {
             Box::pin(async move {
                 poise::builtins::register_globally(_ctx, &_framework.options().commands).await?;
-                backend_api::actix_main::start_actix_web().await;
                 {
                     events::timer::check_timer().await;
                     events::moderation::check_mutes().await;
