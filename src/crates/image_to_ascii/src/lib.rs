@@ -118,7 +118,7 @@ pub fn convert_to_ascii(buffer: Vec<u8>, quality: u8) -> io::Result<Vec<u8>> {
 
     fs::remove_file(format!("./generated_images/{}", random_filename)).unwrap();
     fs::remove_file(output_str.trim_end()).unwrap();
-    fs::remove_file(json["path"].as_str().unwrap()).unwrap();
+    
     
     print!("finished");
     
