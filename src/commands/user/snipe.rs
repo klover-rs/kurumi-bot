@@ -7,6 +7,7 @@ use poise::serenity_prelude as serenity;
 use poise::CreateReply;
 use reqwest::Client;
 use serenity::builder::CreateEmbed;
+use chrono::Utc;
 
 use crate::db::moderation::logs::Database;
 
@@ -29,14 +30,19 @@ pub async fn snipe(ctx: Context<'_>) -> Result<(), Error> {
         .await
         .expect("Failed to fetch user info");
 
+    let current_time = Utc::now();
+
     ctx.send(CreateReply::default().embed(CreateEmbed::default()
-        .title("SNIPED!!!!!!!!!! :3")
+        .title(format!("sniped {}'s message!", user_info.username))
         .thumbnail(user_info.avatar)
         .fields([
             ("Content", last_deleted_msg[0].content.clone(), false),
             ("Author", format!("<@{}>", last_deleted_msg[0].author_id.to_string()), true),
             ("Channel", format!("<#{}>", last_deleted_msg[0].channel_id.to_string()), true),
         ])
+        .timestamp(current_time)
+        .color(0xa33a0d)
+
     )).await?;
 
     Ok(())

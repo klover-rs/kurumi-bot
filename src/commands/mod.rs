@@ -6,3 +6,4 @@ pub mod utils;
 pub mod moderation;
 pub mod components;
 pub mod user;
+pub mod utilities;

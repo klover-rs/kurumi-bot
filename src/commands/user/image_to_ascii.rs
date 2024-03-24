@@ -1,7 +1,7 @@
 use crate::{Context, Error};
 use std::time::Instant;
 
-use poise::serenity_prelude::CreateAttachment;
+use poise::serenity_prelude::{CreateAttachment, CreateEmbed};
 use poise::CreateReply;
 
 use fastrand::Rng;
@@ -17,7 +17,13 @@ pub async fn image_to_ascii(
     #[description = "the quality of the image (default = 80, max = 255)"] quality: u8,
 ) -> Result<(), Error> {
 
-    let msg = ctx.send(CreateReply::default().content("processing.. this may take a while")).await?;
+    let msg = ctx.send(
+        CreateReply::default().content("processing.. this may take a while").embed(
+            CreateEmbed::default()
+            .title("Beta notice!")
+            .description("This command is still in beta. Results may not be as accurate as expected to be.")
+        ).ephemeral(true)
+    ).await?;
     
     println!("{}", image.filename);
 
@@ -30,12 +36,12 @@ pub async fn image_to_ascii(
         "png" | "jpg" | "jpeg" => {
             let start = Instant::now();
             let ascii = convert_to_ascii(image_dl, 200).unwrap();
-            println!("{:?}", ascii);
-            msg.delete(ctx).await?;
-            ctx.send(CreateReply::default().attachment(CreateAttachment::bytes(ascii, format!("{}.png", generate_random_string())))).await?;
-            
             let end = Instant::now();
             let duration = end - start;
+            ctx.send(CreateReply::default()
+                .attachment(CreateAttachment::bytes(ascii, format!("{}.png", generate_random_string())))
+                .content(format!("Your image has been processed <@{}>! (processed in {} ms)", ctx.author().id, duration.as_millis()))
+            ).await?;
         }
 
         _ => {
