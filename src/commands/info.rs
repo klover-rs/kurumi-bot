@@ -49,7 +49,7 @@ pub async fn info(ctx: Context<'_>) -> Result<(), Error> {
             CreateEmbedAuthor::new(
                 format!("owner: {}", &user_info.username)
             )
-            .url("https://github.com/Asm-Rosie")
+            .url("https://github.com/mari-rs")
             .icon_url(&user_info.avatar)
         )
     )).await?;
