@@ -11,7 +11,7 @@ use serenity::{
     builder::{CreateEmbed, CreateEmbedAuthor},
 };
 
-#[poise::command(prefix_command)]
+#[poise::command(slash_command, prefix_command)]
 pub async fn hug(ctx: Context<'_>, user: serenity::User) -> Result<(), Error> {
     let image_url = get_hug_image().await.expect("Failed to get hug image");
     let avatar_url = ctx.author().avatar_url().unwrap();
