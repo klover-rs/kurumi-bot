@@ -15,7 +15,7 @@ use crate::secrets::get_secret;
 #[poise::command(prefix_command, slash_command)]
 pub async fn authorize(
     ctx: Context<'_>,
-    #[description = "Enter the auth code you got from the dashboard"] auth_code: String
+    #[description = "Enter the auth code you got from the dashboard"] auth_code: u32
 ) -> Result<(), Error> {
 
     let api_url = get_secret("API_URL");
@@ -23,7 +23,7 @@ pub async fn authorize(
     let user_id = ctx.author().id.to_string();
 
 
-    let response = send_authorize_request(&api_url, auth_code.parse().unwrap(), &user_id).await;
+    let response = send_authorize_request(&api_url, auth_code, &user_id).await;
 
     println!("hi");
 
