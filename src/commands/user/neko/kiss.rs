@@ -1,8 +1,8 @@
 use std::vec;
 
 use crate::{Context, Error};
-
-use poise::{serenity_prelude as serenity, serenity_prelude::CreateMessage};
+use poise::CreateReply;
+use poise::serenity_prelude as serenity;
 
 use serenity::{
     all::colours,
@@ -21,8 +21,8 @@ pub async fn kiss(ctx: Context<'_>, user: serenity::User) -> Result<(), Error> {
                 .icon_url(avatar_url),
         )
         .colour(colours::roles::BLUE);
-    let builder = CreateMessage::new().embed(embed);
-    ctx.channel_id().send_message(&ctx.http(), builder).await?;
+
+    ctx.send(CreateReply::default().embed(embed)).await?;
     Ok(())
 }
 
