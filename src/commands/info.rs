@@ -3,7 +3,6 @@ use crate::{secrets, Context, Error};
 use crate::utils::system_usage;
 use reqwest::Client;
 use rustc_version::version_meta;
-use std::fs;
 
 use poise::serenity_prelude as serenity;
 

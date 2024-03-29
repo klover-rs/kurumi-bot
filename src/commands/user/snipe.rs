@@ -1,7 +1,6 @@
 use crate::secrets;
 use crate::{Context, Error};
 
-use poise::serenity_prelude::model::{guild, user};
 use poise::serenity_prelude as serenity;
 
 use poise::CreateReply;

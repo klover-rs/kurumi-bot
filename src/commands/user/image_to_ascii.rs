@@ -17,7 +17,7 @@ pub async fn image_to_ascii(
     #[description = "the quality of the image (default = 80, max = 255)"] quality: u8,
 ) -> Result<(), Error> {
 
-    let msg = ctx.send(
+    ctx.send(
         CreateReply::default().content("processing.. this may take a while").embed(
             CreateEmbed::default()
             .title("Beta notice!")
@@ -35,7 +35,7 @@ pub async fn image_to_ascii(
     match extension {
         "png" | "jpg" | "jpeg" => {
             let start = Instant::now();
-            let ascii = convert_to_ascii(image_dl, 200).unwrap();
+            let ascii = convert_to_ascii(image_dl, quality).unwrap();
             let end = Instant::now();
             let duration = end - start;
             ctx.send(CreateReply::default()
