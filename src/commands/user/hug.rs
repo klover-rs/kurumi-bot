@@ -2,8 +2,6 @@ use std::vec;
 
 use crate::{Context, Error};
 
-use core::result::Result::Ok;
-
 use poise::{serenity_prelude as serenity, serenity_prelude::CreateMessage};
 
 use serenity::{
