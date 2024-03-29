@@ -94,6 +94,10 @@ async fn main() {
             event_handler: |ctx, event, framework, data| {
                 Box::pin(event_handler(ctx, event, framework, data))
             },
+            prefix_options: poise::PrefixFrameworkOptions {
+                prefix: Some("-".into()),
+                ..Default::default()
+            },
             ..Default::default()
         })
         .build();
