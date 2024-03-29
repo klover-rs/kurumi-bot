@@ -1,31 +1,28 @@
 use poise::serenity_prelude as serenity;
 
-mod secrets;
-mod db;
-mod utils;
 mod commands;
-mod handler;
+mod db;
 mod download_docs;
-mod rich_presence;
 mod events;
+mod handler;
+mod rich_presence;
+mod secrets;
+mod utils;
 
 use image_to_ascii::init as image_to_ascii_init;
 
 use commands::{
-    help::*, 
-    info::*, 
+    help::*,
+    info::*,
     moderation::{
-        ban::{ban, unban}, 
-        kick::kick, 
+        ban::{ban, unban},
+        kick::kick,
         mute::{mute, unmute},
     },
-    user::{
-        image_to_ascii::image_to_ascii,
-        snipe::snipe
-    },
-    rps::*, 
-    timer::*, 
-    utils::*
+    rps::*,
+    timer::*,
+    user::{hug::hug, image_to_ascii::image_to_ascii, snipe::snipe},
+    utils::*,
 };
 use rich_presence::discord_rpc;
 
@@ -88,7 +85,8 @@ async fn main() {
                 timer(),
                 ping(),
                 image_to_ascii(),
-                snipe()
+                snipe(),
+                hug(),
             ],
             on_error: |error| Box::pin(on_error(error)),
             event_handler: |ctx, event, framework, data| {
@@ -116,23 +114,47 @@ async fn event_handler(
             println!("Logged in as {}", data_about_bot.user.name);
         }
         serenity::FullEvent::Message { new_message, .. } => {
-            println!("Message from {}: {}", new_message.author.name, new_message.content);
-            handler::message_logging::handle_messages(new_message, _framework).await.unwrap();
+            println!(
+                "Message from {}: {}",
+                new_message.author.name, new_message.content
+            );
+            handler::message_logging::handle_messages(new_message, _framework)
+                .await
+                .unwrap();
             handler::messages_reactions::message_reactions(new_message, &ctx).await?;
         }
-        serenity::FullEvent::MessageDelete { channel_id: _, deleted_message_id, guild_id } => {
-            println!("deleted this message: {} in guild: {}", deleted_message_id, guild_id.unwrap());
-            handler::message_logging::deleted_messages_handler(&deleted_message_id, &ctx).await.unwrap();
+        serenity::FullEvent::MessageDelete {
+            channel_id: _,
+            deleted_message_id,
+            guild_id,
+        } => {
+            println!(
+                "deleted this message: {} in guild: {}",
+                deleted_message_id,
+                guild_id.unwrap()
+            );
+            handler::message_logging::deleted_messages_handler(&deleted_message_id, &ctx)
+                .await
+                .unwrap();
         }
-        serenity::FullEvent::MessageUpdate { old_if_available: _, new: _, event } => {
-            
-            println!("edited message: {:?}\nid: {}", event.content, event.id.to_string());
+        serenity::FullEvent::MessageUpdate {
+            old_if_available: _,
+            new: _,
+            event,
+        } => {
+            println!(
+                "edited message: {:?}\nid: {}",
+                event.content,
+                event.id.to_string()
+            );
 
             let edited_msg = event.content.clone();
 
             match edited_msg {
                 Some(content) => {
-                    handler::message_logging::edited_messages_handler(&event.id, &content, ctx).await.unwrap();
+                    handler::message_logging::edited_messages_handler(&event.id, &content, ctx)
+                        .await
+                        .unwrap();
                 }
                 None => {
                     println!("edited content is None");
