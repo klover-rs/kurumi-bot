@@ -23,13 +23,17 @@ fn get_repo() -> String {
 pub async fn fetch_docs(which: &str) -> Result<String, Box<dyn std::error::Error>> {
     let url = format!(
         "https://raw.githubusercontent.com/{}/main/docs/{}",
-        get_repo() , which
+        get_repo(),
+        which
     );
 
     let client = reqwest::Client::new();
     let response = client
         .get(url)
-        .header(AUTHORIZATION, format!("Bearer {}", get_secret("GITHUB_TOKEN")))
+        .header(
+            AUTHORIZATION,
+            format!("Bearer {}", get_secret("GITHUB_TOKEN")),
+        )
         .send()
         .await?;
 

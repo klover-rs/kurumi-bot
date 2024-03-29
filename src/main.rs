@@ -21,7 +21,7 @@ use commands::{
     },
     rps::*,
     timer::*,
-    user::{hug::hug, image_to_ascii::image_to_ascii, snipe::snipe},
+    user::{image_to_ascii::image_to_ascii, neko_commands::neko, snipe::snipe},
     utilities::authorize::authorize,
     utils::*,
 };
@@ -76,6 +76,7 @@ async fn main() {
         .options(poise::FrameworkOptions {
             commands: vec![
                 authorize(),
+                neko(),
                 help(),
                 info(),
                 ban(),
@@ -88,8 +89,6 @@ async fn main() {
                 ping(),
                 image_to_ascii(),
                 snipe(),
-                hug(),
-                
             ],
             on_error: |error| Box::pin(on_error(error)),
             event_handler: |ctx, event, framework, data| {

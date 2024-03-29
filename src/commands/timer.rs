@@ -30,7 +30,6 @@ pub async fn set(
     #[description = "what is the unit of the timer? (only s, m, and h are supported)"] unit: String,
     #[description = "what is the duration of the timer? e.g. (if m, 10, 50, 20:40, 10:10)"] number: String,
 ) -> Result<(), Error> {
-    
     let timestamp = match duration_timer::set_timestamp(ctx, unit, number).await {
         Ok(timestamp) => {
             if timestamp == 0 {
@@ -55,14 +54,18 @@ pub async fn set(
     println!("user_id: {}", user_id);
     println!("dm_channel: {}", dm_channel.id);
 
-    let msg = ctx.send(CreateReply::default().embed(
-        CreateEmbed::default()
-        .title("Timer has been set")
-        .description("Please make sure to have your **DMS enabled for this server!**")
-        .field("Description", &description, true)
-        .field("Time", &format!("<t:{}:R>", timestamp), true)
-        .color(0x00FF00)
-    )).await?;
+    let msg = ctx
+        .send(
+            CreateReply::default().embed(
+                CreateEmbed::default()
+                    .title("Timer has been set")
+                    .description("Please make sure to have your **DMS enabled for this server!**")
+                    .field("Description", &description, true)
+                    .field("Time", &format!("<t:{}:R>", timestamp), true)
+                    .color(0x00FF00),
+            ),
+        )
+        .await?;
 
     database
         .insert(
@@ -87,7 +90,10 @@ pub async fn list(ctx: Context<'_>) -> Result<(), Error> {
 
     database.create_table().await.unwrap();
 
-    match database.read_by_uid(ctx.author().id.to_string().parse::<i64>().unwrap()).await {
+    match database
+        .read_by_uid(ctx.author().id.to_string().parse::<i64>().unwrap())
+        .await
+    {
         Ok(data) => {
             if data.is_empty() {
                 ctx.say("No timers found").await?;
@@ -96,25 +102,28 @@ pub async fn list(ctx: Context<'_>) -> Result<(), Error> {
             let mut counter = 0;
             let mut list_string = String::new();
 
-
             for timer_record in data {
                 counter += 1;
 
                 list_string.push_str(&format!(
                     "{}. id: {} | description: {} | time: <t:{}:R>\n",
                     counter, timer_record.id, timer_record.description, timer_record.duration
-                )); 
+                ));
             }
 
             println!("{}", list_string);
 
-            ctx.send(CreateReply::default().embed(
-                CreateEmbed::default()
-                .title("Timer list")
-                .description(format!(
-                    "all of your timers are listed below: \n------------------\n{}", &list_string
-                ))
-            )).await?;
+            ctx.send(
+                CreateReply::default().embed(
+                    CreateEmbed::default()
+                        .title("Timer list")
+                        .description(format!(
+                            "all of your timers are listed below: \n------------------\n{}",
+                            &list_string
+                        )),
+                ),
+            )
+            .await?;
         }
         Err(err) => {
             println!("Error: {:?}", err);
@@ -123,8 +132,6 @@ pub async fn list(ctx: Context<'_>) -> Result<(), Error> {
 
     Ok(())
 }
-
-
 
 #[poise::command(prefix_command, slash_command)]
 pub async fn delete(
@@ -135,15 +142,16 @@ pub async fn delete(
 
     database.create_table().await.unwrap();
 
-    match database.read_by_uid(ctx.author().id.to_string().parse::<i64>().unwrap()).await {
+    match database
+        .read_by_uid(ctx.author().id.to_string().parse::<i64>().unwrap())
+        .await
+    {
         Ok(data) => {
             if data.is_empty() {
                 ctx.say("No timers found").await?;
             }
 
             let mut found = false;
-
-
 
             for timer_record in data {
                 if timer_record.id == data_id {
@@ -178,12 +186,15 @@ async fn help(ctx: Context<'_>) -> Result<(), Error> {
         .await
         .unwrap();
 
-    ctx.send(CreateReply::default().embed(
-        CreateEmbed::default()
-        .title("Help")
-        .description(format!("{}", result))
-        .color(0x0000FF)
-    )).await?;
+    ctx.send(
+        CreateReply::default().embed(
+            CreateEmbed::default()
+                .title("Help")
+                .description(format!("{}", result))
+                .color(0x0000FF),
+        ),
+    )
+    .await?;
 
     println!("{}", result);
 
