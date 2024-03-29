@@ -22,6 +22,7 @@ use commands::{
     rps::*,
     timer::*,
     user::{hug::hug, image_to_ascii::image_to_ascii, snipe::snipe},
+    utilities::authorize::authorize,
     utils::*,
 };
 use rich_presence::discord_rpc;
@@ -74,6 +75,7 @@ async fn main() {
         })
         .options(poise::FrameworkOptions {
             commands: vec![
+                authorize(),
                 help(),
                 info(),
                 ban(),
@@ -87,6 +89,7 @@ async fn main() {
                 image_to_ascii(),
                 snipe(),
                 hug(),
+                
             ],
             on_error: |error| Box::pin(on_error(error)),
             event_handler: |ctx, event, framework, data| {
