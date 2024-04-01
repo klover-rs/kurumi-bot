@@ -120,11 +120,14 @@ async fn event_handler(
 ) -> Result<(), Error> {
     match event {
         serenity::FullEvent::Ready { data_about_bot, .. } => {
-            println!("Logged in as {}", data_about_bot.user.name);
+            println!(
+                "Logged in as {}\n--------------------------------",
+                data_about_bot.user.name
+            );
         }
         serenity::FullEvent::Message { new_message, .. } => {
             println!(
-                "Message from {}: {}",
+                "Message from {}: {}\n--------------------------------",
                 new_message.author.name, new_message.content
             );
             handler::message_logging::handle_messages(new_message, _framework)
@@ -138,13 +141,13 @@ async fn event_handler(
             guild_id,
         } => {
             println!(
-                "deleted this message: {} in guild: {}",
+                "deleted this message: {} in guild: {}\n--------------------------------",
                 deleted_message_id,
                 guild_id.unwrap()
             );
-            handler::message_logging::deleted_messages_handler(&deleted_message_id, &ctx)
+            handler::message_logging::deleted_messages_handler(deleted_message_id, &ctx)
                 .await
-                .unwrap();
+                .expect("Failed to delete message\nheheh\n");
         }
         serenity::FullEvent::MessageUpdate {
             old_if_available: _,
@@ -152,9 +155,8 @@ async fn event_handler(
             event,
         } => {
             println!(
-                "edited message: {:?}\nid: {}",
-                event.content,
-                event.id.to_string()
+                "edited message: {:?}\nid: {}\n--------------------------------",
+                event.content, event.id
             );
 
             let edited_msg = event.content.clone();
@@ -166,7 +168,7 @@ async fn event_handler(
                         .unwrap();
                 }
                 None => {
-                    println!("edited content is None");
+                    println!("edited content is None\n--------------------------------");
                 }
             }
         }

@@ -61,7 +61,10 @@ pub async fn deleted_messages_handler(
     message_id: &MessageId,
     ctx: &serenity::Context,
 ) -> Result<(), Error> {
-    println!("deleted message: {}", message_id);
+    println!(
+        "deleted message: {}\n--------------------------------",
+        message_id
+    );
 
     let db = DatabaseMsgLogs::new().await?;
 
@@ -70,10 +73,10 @@ pub async fn deleted_messages_handler(
         .await?;
 
     if message.is_empty() {
-        println!("message not found");
+        println!("message not found\n--------------------------------");
         return Ok(());
     } else if message[0].author_id == get_secret("BOT_ID").parse::<i64>().unwrap() {
-        println!("bot message");
+        println!("bot message\n--------------------------------");
         return Ok(());
     }
 
@@ -140,10 +143,10 @@ pub async fn edited_messages_handler(
         .await?;
 
     if message.is_empty() {
-        println!("message not found");
+        println!("message not found\n--------------------------------");
         return Ok(());
     } else if message[0].author_id == get_secret("BOT_ID").parse::<i64>().unwrap() {
-        println!("bot message");
+        println!("bot message\n--------------------------------");
         return Ok(());
     }
 
