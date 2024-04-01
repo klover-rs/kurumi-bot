@@ -80,26 +80,32 @@ impl DatabaseMsgLogs {
             0 => "".to_string(), // Return an empty string if the attachments vector is empty
             _ => attachments.join(","), // Join the attachments into a single string separated by ","
         };
-        let trans = self.pool.begin().await?;
+
         let mut transaction = self.pool.begin().await?;
 
-        let q = sqlx::query!("INSERT INTO msg_logs (msg_id, guild_id, channel_id, author_id, contents, attachments) VALUES ($1, $2, $3, $4, $5, $6)", &msg_id, &guild_id, &channel_id, &author_id, &contents, &attachment_string);
+        let q = sqlx::query("INSERT INTO msg_logs (msg_id, guild_id, channel_id, author_id, contents, attachments) VALUES ($1, $2, $3, $4, $5, $6)");
 
-        q.execute(&mut *transaction).await?;
-        trans.commit().await?;
+        q.bind(msg_id)
+            .bind(guild_id)
+            .bind(channel_id)
+            .bind(author_id)
+            .bind(contents)
+            .bind(attachment_string)
+            .execute(&mut *transaction)
+            .await?;
+        transaction.commit().await?;
 
         let trans = self.pool.begin().await?;
         let row_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM msg_logs")
-            .fetch_one(&mut *transaction)
+            .fetch_one(&self.pool)
             .await?;
         trans.commit().await?;
-        let row_count: i64 = row_count as i64;
 
         if row_count > 1000 {
             let trans = self.pool.begin().await?;
             sqlx::query(
                 "DELETE FROM msg_logs WHERE msg_id = (SELECT msg_id FROM logs ORDER BY msg_id ASC LIMIT 1)"
-            ).execute(&mut *transaction).await?;
+            ).execute(&self.pool).await?;
             trans.commit().await?;
         }
 
@@ -121,7 +127,6 @@ impl DatabaseMsgLogs {
             _ => attachments.join(","), // Join the attachments into a single string separated by ","
         };
 
-        let trans: Transaction<'_, sqlx::Postgres> = self.pool.begin().await?;
         let mut transaction = self.pool.begin().await?;
         sqlx::query(
             "INSERT INTO deleted_msgs (msg_id, guild_id, channel_id, author_id, contents, attachments) VALUES ($1, $2, $3, $4, $5, $6)"
@@ -133,21 +138,21 @@ impl DatabaseMsgLogs {
         .bind(contents)
         .bind(&attachment_string)
         .execute(&mut *transaction ).await?;
-        trans.commit().await?;
+        transaction.commit().await?;
 
-        let trans = self.pool.begin().await?;
+        let mut transaction = self.pool.begin().await?;
         let row_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM msg_logs")
             .fetch_one(&mut *transaction)
             .await?;
-        trans.commit().await?;
+        transaction.commit().await?;
         let row_count: i64 = row_count as i64;
 
         if row_count > 1000 {
-            let trans = self.pool.begin().await?;
+            let mut transaction = self.pool.begin().await?;
             sqlx::query(
             "DELETE FROM msg_logs WHERE msg_id = (SELECT msg_id FROM logs ORDER BY msg_id ASC LIMIT 1)"
         ).execute(&mut *transaction).await?;
-            trans.commit().await?;
+            transaction.commit().await?;
         }
 
         Ok(())
@@ -188,7 +193,6 @@ impl DatabaseMsgLogs {
     }
 
     pub async fn update_logs_by_id(&self, msg_id: i64, new_contents: &str) -> Result<(), Error> {
-        let trans = self.pool.begin().await?;
         let mut transaction = self.pool.begin().await?;
 
         sqlx::query("UPDATE msg_logs SET content = $1 WHERE msg_id = $2")
@@ -197,7 +201,7 @@ impl DatabaseMsgLogs {
             .execute(&mut *transaction)
             .await?;
 
-        trans.commit().await?;
+        transaction.commit().await?;
         Ok(())
     }
 

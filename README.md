@@ -13,13 +13,8 @@ GITHUB_TOKEN="your github token"
 LOG_CHANNEL="channel id"
 BOT_ID = "bot user id here"
 DB_PW = "your database password"
-DB_NAME = "your database name"
 ```
 
-now make a .env, and in there store your database url just like this
-```.env
-DATABASE_URL=postgresql://user:password123@localhost:5432/discord_bot
-```
 
 make sure you have [PostgreSQL](https://www.postgresql.org/download/) installed for your OS and set up.
 
