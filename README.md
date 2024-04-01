@@ -2,7 +2,7 @@
 ![Build](https://github.com/Asm-Rosie/adhd-helper-bot/actions/workflows/rust.yml/badge.svg)
 
 ## How to run
-first get ur discord bot token
+## First get ur discord bot token
 
 once you have it create in ur project root dir a file called "Secrets.toml" you place this in there 
 ```toml
@@ -13,6 +13,12 @@ GITHUB_TOKEN="your github token"
 LOG_CHANNEL="channel id"
 BOT_ID = "bot user id here"
 DB_PW = "your database password"
+DB_NAME = "your database name"
+```
+
+now make a .env, and in there store your database url just like this
+```.env
+DATABASE_URL=postgresql://user:password123@localhost:5432/discord_bot
 ```
 
 make sure you have [PostgreSQL](https://www.postgresql.org/download/) installed for your OS and set up.

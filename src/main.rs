@@ -25,7 +25,8 @@ use commands::{
     utilities::authorize::authorize,
     utils::*,
 };
-use rich_presence::discord_rpc;
+
+use dotenv::dotenv;
 
 // Types used by all command functions
 type Error = Box<dyn std::error::Error + Send + Sync>;
@@ -54,6 +55,8 @@ async fn on_error(error: poise::FrameworkError<'_, Data, Error>) {
 
 #[tokio::main]
 async fn main() {
+    dotenv().ok();
+
     env_logger::init();
     image_to_ascii_init();
 
@@ -69,7 +72,7 @@ async fn main() {
                     events::timer::check_timer().await;
                     events::moderation::check_mutes().await;
                 }
-                discord_rpc().await?;
+
                 Ok(Data {})
             })
         })
