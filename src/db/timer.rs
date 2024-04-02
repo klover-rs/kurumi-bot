@@ -1,12 +1,9 @@
-
-use bb8::Pool;
-use bb8_postgres::PostgresConnectionManager;
-use tokio_postgres::{NoTls, Error, Row};
 use crate::secrets::get_secret;
+use crate::Error;
+use sqlx::{postgres::PgRow, PgPool, Row};
 pub struct Database {
-    pool: Pool<PostgresConnectionManager<NoTls>>,
+    pool: PgPool,
 }
-
 
 #[derive(Debug)]
 pub struct Timer {
@@ -19,19 +16,22 @@ pub struct Timer {
 
 impl Database {
     // Initialize the connection pool
-    pub async fn new() -> Result<Self, Error> {
-        let manager = PostgresConnectionManager::new_from_stringlike(
-            format!("host=localhost user=postgres password={}", get_secret("DB_PW")),
-            NoTls,
-        ).expect("Failed to create connection manager");
-
-        let pool = Pool::builder().build(manager).await.expect("Failed to build pool");
-        Ok(Database { pool })
+    pub async fn new() -> Result<Self, sqlx::Error> {
+        let url = format!(
+            "postgresql://postgres:{}@localhost:5432/{}",
+            get_secret("DB_PW"),
+            get_secret("DB_NAME")
+        );
+        let url = url.as_str();
+        let pool = sqlx::postgres::PgPool::connect(url).await?;
+        Ok(Self { pool })
+        /* postgresql://postgres:7522@localhost:5432/kurumi_shit"  */
     }
 
-    pub async fn create_table(&self) -> Result<(), Error> { // Note the change in the return type here
-        let conn = self.pool.get().await.unwrap();
-        conn.execute(
+    pub async fn create_table(&self) -> Result<(), Error> {
+        // Note the change in the return type here
+
+        sqlx::query(
             "CREATE TABLE IF NOT EXISTS timer (
                 id SERIAL PRIMARY KEY,
                 uid BIGINT,
@@ -39,35 +39,42 @@ impl Database {
                 duration BIGINT,
                 dm_channel BIGINT
             )",
-            &[],
-        ).await?;
+        )
+        .execute(&self.pool)
+        .await?;
         Ok(())
     }
 
-    pub async fn insert(&self, uid: i64, description: &str, time: i64, dm_channel: i64) -> Result<(), Error> {
-        let mut conn = self.pool.get().await.unwrap();
-
-        let trans = conn.transaction().await?;
-
-        trans.execute(
+    pub async fn insert(
+        &self,
+        uid: i64,
+        description: &str,
+        time: i64,
+        dm_channel: i64,
+    ) -> Result<(), Error> {
+        let mut transaction = self.pool.begin().await?;
+        sqlx::query(
             "INSERT INTO timer (uid, description, duration, dm_channel) VALUES ($1, $2, $3, $4)",
-            &[&uid, &description, &time, &dm_channel],
-        ).await?;
+        )
+        .bind(uid)
+        .bind(description)
+        .bind(time)
+        .bind(dm_channel)
+        .execute(&mut *transaction)
+        .await?;
 
-        trans.commit().await?;
+        transaction.commit().await?;
 
         Ok(())
-    
     }
 
     pub async fn read(&self) -> Result<Vec<Timer>, Error> {
+        let mut transaction = self.pool.begin().await?;
+        let rows = sqlx::query("SELECT * FROM timer")
+            .fetch_all(&mut *transaction)
+            .await?;
+        transaction.commit().await?;
         let mut timer_records = Vec::new();
-
-        let conn = self.pool.get().await.unwrap();
-
-        let stmt = conn.prepare("SELECT * FROM timer").await?;
-
-        let rows = conn.query(&stmt, &[]).await?;
 
         for row in rows {
             timer_records.push(parse_timer_record(row)?);
@@ -78,34 +85,35 @@ impl Database {
 
     pub async fn read_by_uid(&self, uid: i64) -> Result<Vec<Timer>, Error> {
         let mut timer_records = Vec::new();
+        let mut transaction = self.pool.begin().await?;
 
-        let conn = self.pool.get().await.unwrap();
+        let rows = sqlx::query("SELECT * FROM timer WHERE uid = $1")
+            .bind(uid)
+            .fetch_all(&mut *transaction)
+            .await?;
 
-        let stmt = conn.prepare("SELECT * FROM timer WHERE uid = $1").await?;
-
-        let rows = conn.query(&stmt, &[&uid]).await?;
+        transaction.commit().await?;
 
         for row in rows {
             timer_records.push(parse_timer_record(row)?);
         }
 
         Ok(timer_records)
-
     }
 
     pub async fn delete_by_id(&self, id: i32) -> Result<(), Error> {
-        let mut conn = self.pool.get().await.unwrap();
+        let mut transaction = self.pool.begin().await?;
+        sqlx::query("DELETE FROM timer WHERE id = $1")
+            .bind(id)
+            .execute(&mut *transaction)
+            .await?;
 
-        let trans = conn.transaction().await?;
-
-        trans.execute("DELETE FROM timer WHERE id = $1", &[&id]).await?;
-
-        trans.commit().await?;
+        transaction.commit().await?;
         Ok(())
     }
-}   
+}
 
-fn parse_timer_record(row: Row) -> Result<Timer, Error> {
+fn parse_timer_record(row: PgRow) -> Result<Timer, Error> {
     Ok(Timer {
         id: row.try_get(0)?,
         uid: row.try_get(1)?,
@@ -113,5 +121,4 @@ fn parse_timer_record(row: Row) -> Result<Timer, Error> {
         duration: row.try_get(3)?,
         dm_channel: row.try_get(4)?,
     })
-
 }
