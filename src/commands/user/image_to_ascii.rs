@@ -9,7 +9,7 @@ use fastrand::Rng;
 use poise::serenity_prelude as serenity;
 use image_to_ascii::convert_to_ascii;
 
-/// Shows the bot's latency
+/// Convert an image to ascii characters
 #[poise::command(prefix_command, slash_command)]
 pub async fn image_to_ascii(
     ctx: Context<'_>,

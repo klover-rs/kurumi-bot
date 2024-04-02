@@ -1,8 +1,9 @@
+use std::fmt::format;
 use std::vec;
 
 use crate::{Context, Error};
-use poise::CreateReply;
 use poise::serenity_prelude as serenity;
+use poise::CreateReply;
 
 use serenity::{
     all::colours,
@@ -26,7 +27,12 @@ pub async fn baka(ctx: Context<'_>, user: serenity::User) -> Result<(), Error> {
         )
         .colour(colours::roles::BLUE);
 
-    ctx.send(CreateReply::default().embed(embed)).await?;
+    ctx.send(
+        CreateReply::default()
+            .embed(embed)
+            .content(format!("<@{}>", user.id)),
+    )
+    .await?;
     Ok(())
 }
 

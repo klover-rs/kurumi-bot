@@ -11,7 +11,7 @@ use serenity::builder::CreateEmbed;
 use serenity::builder::CreateEmbedAuthor;
 
 use crate::download_docs;
-
+///Show info about the bot
 #[poise::command(prefix_command, slash_command)]
 pub async fn info(ctx: Context<'_>) -> Result<(), Error> {
     let mem_usage = system_usage::memusage()?;

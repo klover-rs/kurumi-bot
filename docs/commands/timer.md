@@ -33,7 +33,7 @@
 
 
 ### Help Command
-- **Description**: Provides help information about command usage (coming soon).
+- **Description**: Provides help information about command usage .
 - **Usage**:
 
 ```timer help```

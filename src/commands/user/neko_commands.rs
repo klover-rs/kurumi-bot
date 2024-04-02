@@ -16,6 +16,7 @@ use serenity::builder::CreateEmbed;
     prefix_command,
     subcommands("baka", "cuddle", "hug", "kiss", "meow", "pat", "slap")
 )]
+///Get help for the neko commands
 pub async fn neko(ctx: Context<'_>) -> Result<(), Error> {
     let result = download_docs::fetch_docs(&"commands/user/neko.md")
         .await

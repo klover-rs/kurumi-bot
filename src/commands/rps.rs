@@ -14,7 +14,7 @@ pub enum StringChoice {
     #[name = "Scissor"]
     Scissor,
 }
-
+///Play rocker paper scissors with the bot
 #[poise::command(prefix_command, slash_command)]
 pub async fn rock_paper_scissors(
     ctx: Context<'_>,

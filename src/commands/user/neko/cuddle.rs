@@ -29,8 +29,13 @@ pub async fn cuddle(ctx: Context<'_>, user: serenity::User) -> Result<(), Error>
             .icon_url(avatar_url),
         )
         .colour(colours::roles::BLUE);
-    
-    ctx.send(CreateReply::default().embed(embed)).await?;
+
+    ctx.send(
+        CreateReply::default()
+            .embed(embed)
+            .content(format!("<@{}>", user.id)),
+    )
+    .await?;
     Ok(())
 }
 

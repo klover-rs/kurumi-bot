@@ -9,7 +9,7 @@ use reqwest::Client;
 use serenity::builder::CreateEmbed;
 
 use crate::db::moderation::logs::DatabaseMsgLogs;
-
+///Snipe the last deleted message
 #[poise::command(prefix_command, slash_command)]
 pub async fn snipe(ctx: Context<'_>) -> Result<(), Error> {
     let db = DatabaseMsgLogs::new().await?;

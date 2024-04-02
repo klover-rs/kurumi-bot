@@ -22,7 +22,7 @@ pub async fn timer(ctx: Context<'_>) -> Result<(), Error> {
     ctx.say("no subcommand has been called uwu").await?;
     Ok(())
 }
-
+///Sets a new timer based on the provided duration and unit.
 #[poise::command(prefix_command, slash_command)]
 pub async fn set(
     ctx: Context<'_>,
@@ -83,7 +83,7 @@ pub async fn set(
 
     Ok(())
 }
-
+///Lists all existing timers set by the user.
 #[poise::command(prefix_command, slash_command)]
 pub async fn list(ctx: Context<'_>) -> Result<(), Error> {
     let database = Database::new().await.unwrap();
@@ -132,7 +132,7 @@ pub async fn list(ctx: Context<'_>) -> Result<(), Error> {
 
     Ok(())
 }
-
+///Deletes a specific timer identified by its ID.
 #[poise::command(prefix_command, slash_command)]
 pub async fn delete(
     ctx: Context<'_>,
@@ -179,10 +179,10 @@ pub async fn delete(
     }
     Ok(())
 }
-
+/// Provides help information about command usage 
 #[poise::command(prefix_command, slash_command)]
 async fn help(ctx: Context<'_>) -> Result<(), Error> {
-    let result = download_docs::fetch_docs(&"commands/timer.md")
+    let result = download_docs::fetch_docs("commands/timer.md")
         .await
         .unwrap();
 

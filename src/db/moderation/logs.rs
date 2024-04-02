@@ -195,7 +195,7 @@ impl DatabaseMsgLogs {
     pub async fn update_logs_by_id(&self, msg_id: i64, new_contents: &str) -> Result<(), Error> {
         let mut transaction = self.pool.begin().await?;
 
-        sqlx::query("UPDATE msg_logs SET content = $1 WHERE msg_id = $2")
+        sqlx::query("UPDATE msg_logs SET contents = $1 WHERE msg_id = $2")
             .bind(new_contents)
             .bind(msg_id)
             .execute(&mut *transaction)
