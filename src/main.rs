@@ -58,7 +58,7 @@ async fn main() {
     dotenv().ok();
 
     env_logger::init();
-    image_to_ascii_init();
+
 
     let token = secrets::get_secret("DISCORD_TOKEN");
     let intents =
@@ -78,7 +78,6 @@ async fn main() {
         })
         .options(poise::FrameworkOptions {
             commands: vec![
-                authorize(),
                 neko(),
                 help(),
                 info(),
@@ -90,7 +89,7 @@ async fn main() {
                 rock_paper_scissors(),
                 timer(),
                 ping(),
-                image_to_ascii(),
+
                 snipe(),
             ],
             on_error: |error| Box::pin(on_error(error)),
