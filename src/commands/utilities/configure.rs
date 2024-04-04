@@ -6,7 +6,7 @@ use crate::db::configuration::Database;
 use poise::{serenity_prelude::{self as serenity, model::channel, ChannelId}, CreateReply};
 use serenity::builder::CreateEmbed;
 
-#[poise::command(prefix_command, slash_command, subcommands("upload", "set", "get"))]
+#[poise::command(prefix_command, slash_command, subcommands("upload", "set", "get", "clear"))]
 pub async fn configure(
     ctx: Context<'_>,
 ) -> Result<(), Error> {
@@ -366,5 +366,43 @@ pub async fn get(ctx: Context<'_>) -> Result<(), Error> {
         )
     ).await?;
 
+    Ok(())
+}
+
+#[poise::command(prefix_command, slash_command, required_permissions = "ADMINISTRATOR")]
+pub async fn clear(ctx: Context<'_>) -> Result<(), Error> {
+    let guild_id = match ctx.guild_id() {
+        Some(id) => id.to_string().parse::<i64>().unwrap(),
+        None => {
+            ctx.send(
+                CreateReply::default().embed(CreateEmbed::default()
+                    .title("Error")
+                    .description("this command can only be enforced in guilds.")
+                )
+            ).await?;
+            return Ok(());
+        }
+    };
+
+    let db = Database::new().await?;
+    db.create_table().await?;
+    match db.clear_by_guild_id(guild_id).await {
+        Ok(_) => {
+            ctx.send(
+                CreateReply::default().embed(CreateEmbed::default()
+                    .title("Success")
+                    .description("configuration has been cleared")
+                )
+            ).await?;
+        },
+        Err(e) => {
+            ctx.send(
+                CreateReply::default().embed(CreateEmbed::default()
+                    .title("Error")
+                    .description(format!("failed to clear configuration: {}", e.to_string()))
+                )
+            ).await?;
+        }
+    }
     Ok(())
 }
