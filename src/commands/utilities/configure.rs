@@ -6,7 +6,7 @@ use crate::db::configuration::Database;
 use poise::{serenity_prelude::{self as serenity, model::channel, ChannelId}, CreateReply};
 use serenity::builder::CreateEmbed;
 
-#[poise::command(prefix_command, slash_command, subcommands("upload", "set", "get", "clear"))]
+#[poise::command(prefix_command, slash_command, required_permissions = "ADMINISTRATOR", subcommands("upload", "set", "get", "clear"))]
 pub async fn configure(
     ctx: Context<'_>,
 ) -> Result<(), Error> {
