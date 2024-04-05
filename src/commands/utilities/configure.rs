@@ -3,6 +3,8 @@ use std::time::Instant;
 
 use crate::db::configuration::Database;
 
+use crate::download_docs;
+
 use poise::{serenity_prelude::{self as serenity, model::channel, ChannelId}, CreateReply};
 use serenity::builder::CreateEmbed;
 
@@ -10,7 +12,23 @@ use serenity::builder::CreateEmbed;
 pub async fn configure(
     ctx: Context<'_>,
 ) -> Result<(), Error> {
-    ctx.send(CreateReply::default().content("configure")).await?;
+    
+    let result = download_docs::fetch_docs(&"commands/utilities/configure.md")
+        .await
+        .unwrap();
+
+    ctx.send(
+        CreateReply::default().embed(
+            CreateEmbed::default()
+                .title("Help")
+                .description(format!("{}", result))
+                .color(serenity::colours::roles::DARK_RED),
+        ),
+    )
+    .await?;
+
+    println!("{}", result);
+    
     Ok(())
 }
 
