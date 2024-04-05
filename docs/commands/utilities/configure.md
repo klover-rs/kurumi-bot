@@ -19,3 +19,28 @@
 - **Usage**:
 
 ```configure get```
+
+### Clear Command
+- **Description**: Clear all of your channel configurations
+- **Usage**: 
+
+```configure clear```
+
+### Upload Command
+- **Description**: Upload a JSON or TOML file with channel configurations
+- **parameters** [attachment]
+- **Usage**:
+```configure upload [upload your file]```
+- **expected format**:
+.json
+```json
+{
+  "log_channel_id": "0123456789012345"
+}
+```
+or .toml
+
+```toml
+log_channel_id = "0123456789012345"
+```
+
