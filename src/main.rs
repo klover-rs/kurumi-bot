@@ -22,7 +22,7 @@ use commands::{
     rps::*,
     timer::*,
     user::{image_to_ascii::image_to_ascii, neko_commands::neko, snipe::snipe},
-    utilities::authorize::authorize,
+    utilities::configure::configure,
     utils::*,
 };
 
@@ -79,6 +79,7 @@ async fn main() {
         .options(poise::FrameworkOptions {
             commands: vec![
                 neko(),
+                configure(),
                 help(),
                 info(),
                 ban(),
@@ -135,7 +136,7 @@ async fn event_handler(
             handler::messages_reactions::message_reactions(new_message, &ctx).await?;
         }
         serenity::FullEvent::MessageDelete {
-            channel_id: _,
+            channel_id,
             deleted_message_id,
             guild_id,
         } => {
@@ -144,7 +145,7 @@ async fn event_handler(
                 deleted_message_id,
                 guild_id.unwrap()
             );
-            handler::message_logging::deleted_messages_handler(deleted_message_id, &ctx)
+            handler::message_logging::deleted_messages_handler(channel_id, deleted_message_id, &ctx)
                 .await
                 .expect("Failed to delete message\nheheh\n");
         }
@@ -162,7 +163,7 @@ async fn event_handler(
 
             match edited_msg {
                 Some(content) => {
-                    handler::message_logging::edited_messages_handler(&event.id, &content, ctx)
+                    handler::message_logging::edited_messages_handler(&event.channel_id,&event.id, &content, ctx)
                         .await
                         .unwrap();
                 }

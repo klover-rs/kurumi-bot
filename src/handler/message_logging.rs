@@ -1,8 +1,12 @@
+use poise::serenity_prelude::CacheHttp;
 use poise::FrameworkContext;
 
 use poise::serenity_prelude as serenity;
 
 use crate::{db::moderation::logs::DatabaseMsgLogs, secrets::get_secret, Data, Error};
+
+use crate::db::configuration::Database as DatabaseConfig;
+
 
 use chrono::{DateTime, Utc};
 use serenity::builder::CreateEmbed;
@@ -58,9 +62,43 @@ pub async fn handle_messages(
 }
 
 pub async fn deleted_messages_handler(
+    channel_id: &ChannelId,
     message_id: &MessageId,
     ctx: &serenity::Context,
 ) -> Result<(), Error> {
+    println!("..");
+
+    let guild_id = match channel_id.to_channel(ctx.http()).await {
+        Ok(channel) => match channel.guild() {
+            Some(guild_channel) => guild_channel.guild_id.to_string().parse::<i64>().unwrap(),
+            None => {
+                println!("action is not involved with a guild (likely a dm)");
+                return Ok(());
+            }
+        }
+        Err(e) => {
+            println!("error: {:?}", e);
+            return Ok(());
+        }
+    };
+
+    let config_db = DatabaseConfig::new().await?;
+    config_db.create_table().await?;
+    let config = match config_db.read_by_guild_id(guild_id).await {
+        Ok(config) => {
+            if config.is_empty() {
+                println!("config not found\n--------------------------------");
+                return Ok(());
+            }
+            config
+        },
+        Err(e) => {
+            println!("error: {:?}", e);
+            return Ok(());
+        }
+    };
+
+
     println!(
         "deleted message: {}\n--------------------------------",
         message_id
@@ -69,7 +107,7 @@ pub async fn deleted_messages_handler(
     let db = DatabaseMsgLogs::new().await?;
 
     let message = db
-        .read_logs_by_id(message_id.to_string().parse().unwrap())
+        .read_logs_by_id(message_id.to_string().parse().unwrap(), guild_id)
         .await?;
 
     if message.is_empty() {
@@ -80,9 +118,11 @@ pub async fn deleted_messages_handler(
         return Ok(());
     }
 
-    let log_channel = get_secret("LOG_CHANNEL").parse::<u64>().unwrap();
+    let log_channel = config[0].log_channel;
 
-    let channel_id = ChannelId::from(log_channel);
+    println!("log channel: {}", log_channel);
+
+    let channel_id = ChannelId::from(log_channel as u64);
 
     channel_id
         .send_message(
@@ -132,14 +172,49 @@ pub async fn deleted_messages_handler(
 }
 
 pub async fn edited_messages_handler(
+    channel_id: &ChannelId,
     message_id: &MessageId,
     new_message: &str,
     ctx: &serenity::Context,
 ) -> Result<(), Error> {
+
+
+    let guild_id = match channel_id.to_channel(ctx.http()).await {
+        Ok(channel) => match channel.guild() {
+            Some(guild_channel) => guild_channel.guild_id.to_string().parse::<i64>().unwrap(),
+            None => {
+                println!("action is not involved with a guild (likely a dm)");
+                return Ok(());
+            }
+        }
+        Err(e) => {
+            println!("error: {:?}", e);
+            return Ok(());
+        }
+    };
+
+
+
+    let config_db = DatabaseConfig::new().await?;
+    config_db.create_table().await?;
+    let config = match config_db.read_by_guild_id(guild_id).await {
+        Ok(config) => {
+            if config.is_empty() {
+                println!("config not found\n--------------------------------");
+                return Ok(());
+            }
+            config
+        },
+        Err(e) => {
+            println!("error: {:?}", e);
+            return Ok(());
+        }
+    };
+
     let db = DatabaseMsgLogs::new().await?;
 
     let message = db
-        .read_logs_by_id(message_id.to_string().parse().unwrap())
+        .read_logs_by_id(message_id.to_string().parse().unwrap(), guild_id)
         .await?;
 
     if message.is_empty() {
@@ -150,9 +225,10 @@ pub async fn edited_messages_handler(
         return Ok(());
     }
 
-    let log_channel = get_secret("LOG_CHANNEL").parse::<u64>().unwrap();
+    let log_channel = config[0].log_channel;
 
-    let channel_id = ChannelId::from(log_channel);
+    let channel_id = ChannelId::from(log_channel as u64);
+    
 
     let current_timestamp: DateTime<Utc> = Utc::now();
 

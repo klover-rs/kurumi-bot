@@ -4,7 +4,7 @@
   - `timer set`: Sets a new timer.
   - `timer list`: Lists all existing timers.
   - `timer delete`: Deletes a specific timer.
-  - `timer help`: Provides help information (coming soon).
+  - `timer help`: Provides help information.
 
 ### Set Command
 - **Description**: Sets a new timer based on the provided duration and unit.

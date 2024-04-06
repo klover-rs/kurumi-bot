@@ -28,7 +28,7 @@ pub async fn mute(
     #[description = "user you want to kick?"] user: serenity::User,
     #[description = "duration of the mute?"] duration: String,
     #[description = "time unit (s, m, h)"] unit: String,
-    #[description = "reason for the kick?"] reason: Option<String>,
+    #[description = "reason for the mute?"] reason: Option<String>,
 ) -> Result<(), Error> {
 
     let guild_id = match ctx.guild_id() {
