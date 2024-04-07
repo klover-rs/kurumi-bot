@@ -21,7 +21,7 @@ use commands::{
     },
     rps::*,
     timer::*,
-    user::{image_to_ascii::image_to_ascii, neko_commands::neko, snipe::snipe},
+    user::{avatar::avatar, neko_commands::neko, snipe::snipe},
     utilities::configure::configure,
     utils::*,
 };
@@ -30,6 +30,24 @@ use dotenv::dotenv;
 
 // Types used by all command functions
 type Error = Box<dyn std::error::Error + Send + Sync>;
+
+
+pub struct PrintError(String);
+
+impl std::fmt::Display for PrintError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl std::fmt::Debug for PrintError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl std::error::Error for PrintError {}
+
 #[allow(unused)]
 pub type Context<'a> = poise::Context<'a, Data, Error>;
 
@@ -78,6 +96,7 @@ async fn main() {
         })
         .options(poise::FrameworkOptions {
             commands: vec![
+                avatar(),
                 neko(),
                 configure(),
                 help(),
