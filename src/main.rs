@@ -2,7 +2,7 @@ use poise::serenity_prelude as serenity;
 
 mod commands;
 mod db;
-mod download_docs;
+
 mod events;
 mod handler;
 mod rich_presence;
@@ -59,7 +59,6 @@ async fn main() {
 
     env_logger::init();
 
-
     let token = secrets::get_secret("DISCORD_TOKEN");
     let intents =
         serenity::GatewayIntents::non_privileged() | serenity::GatewayIntents::MESSAGE_CONTENT;
@@ -90,7 +89,6 @@ async fn main() {
                 rock_paper_scissors(),
                 timer(),
                 ping(),
-
                 snipe(),
             ],
             on_error: |error| Box::pin(on_error(error)),
@@ -145,9 +143,13 @@ async fn event_handler(
                 deleted_message_id,
                 guild_id.unwrap()
             );
-            handler::message_logging::deleted_messages_handler(channel_id, deleted_message_id, &ctx)
-                .await
-                .expect("Failed to delete message\nheheh\n");
+            handler::message_logging::deleted_messages_handler(
+                channel_id,
+                deleted_message_id,
+                &ctx,
+            )
+            .await
+            .expect("Failed to delete message\nheheh\n");
         }
         serenity::FullEvent::MessageUpdate {
             old_if_available: _,
@@ -163,9 +165,14 @@ async fn event_handler(
 
             match edited_msg {
                 Some(content) => {
-                    handler::message_logging::edited_messages_handler(&event.channel_id,&event.id, &content, ctx)
-                        .await
-                        .unwrap();
+                    handler::message_logging::edited_messages_handler(
+                        &event.channel_id,
+                        &event.id,
+                        &content,
+                        ctx,
+                    )
+                    .await
+                    .unwrap();
                 }
                 None => {
                     println!("edited content is None\n--------------------------------");

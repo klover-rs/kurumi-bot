@@ -1,6 +1,6 @@
-use crate::{Context, Error};
+use std::fs;
 
-use crate::download_docs;
+use crate::{Context, Error};
 
 use poise::serenity_prelude as serenity;
 
@@ -18,9 +18,12 @@ use serenity::builder::CreateEmbed;
 )]
 ///Get help for the neko commands
 pub async fn neko(ctx: Context<'_>) -> Result<(), Error> {
-    let result = download_docs::fetch_docs(&"commands/user/neko.md")
-        .await
-        .unwrap();
+    let result = fs::read_to_string(
+        std::env::current_dir()
+            .unwrap()
+            .join("docs/commands/user/neko.md"),
+    )
+    .unwrap();
 
     ctx.send(
         CreateReply::default().embed(

@@ -1,3 +1,5 @@
+use std::fs;
+
 use crate::{secrets, Context, Error};
 
 use crate::utils::system_usage;
@@ -10,7 +12,6 @@ use poise::CreateReply;
 use serenity::builder::CreateEmbed;
 use serenity::builder::CreateEmbedAuthor;
 
-use crate::download_docs;
 ///Show info about the bot
 #[poise::command(prefix_command, slash_command)]
 pub async fn info(ctx: Context<'_>) -> Result<(), Error> {
@@ -24,34 +25,35 @@ pub async fn info(ctx: Context<'_>) -> Result<(), Error> {
         .await
         .expect("Failed to fetch user info");
 
-    let info = download_docs::fetch_docs(&"info.md").await.unwrap();
+    let info = fs::read_to_string(std::env::current_dir().unwrap().join("docs/info.md")).unwrap();
     println!("{}", &info);
 
-    ctx.send(CreateReply::default().embed(
-        CreateEmbed::default()
-        .title("Info")
-        .description(&info)
-        .field(
-            "Memory usage <:RAM:1215414863938068620>",
-            format!("{} / {} MB", mem_usage.used_mem, mem_usage.total_mem),
-            true,
-        )
-        .field(
-            "Rust version <:rust:1215414883072483328>",
-            format!(
-                "Version: `{}`\nChannel: `{:?}`",
-                version.semver, version.channel
-            ),
-            true
-        )
-        .author(
-            CreateEmbedAuthor::new(
-                format!("owner: {}", &user_info.username)
-            )
-            .url("https://github.com/mari-rs")
-            .icon_url(&user_info.avatar)
-        )
-    )).await?;
+    ctx.send(
+        CreateReply::default().embed(
+            CreateEmbed::default()
+                .title("Info")
+                .description(&info)
+                .field(
+                    "Memory usage <:RAM:1215414863938068620>",
+                    format!("{} / {} MB", mem_usage.used_mem, mem_usage.total_mem),
+                    true,
+                )
+                .field(
+                    "Rust version <:rust:1215414883072483328>",
+                    format!(
+                        "Version: `{}`\nChannel: `{:?}`",
+                        version.semver, version.channel
+                    ),
+                    true,
+                )
+                .author(
+                    CreateEmbedAuthor::new(format!("owner: {}", &user_info.username))
+                        .url("https://github.com/mari-rs")
+                        .icon_url(&user_info.avatar),
+                ),
+        ),
+    )
+    .await?;
 
     Ok(())
 }
@@ -62,14 +64,16 @@ struct UserInfo {
     avatar: String,
 }
 
-
 async fn fetch_user_info(user_id: &str) -> Result<UserInfo, Box<dyn std::error::Error>> {
     let url = format!("https://discord.com/api/v9/users/{}", user_id);
     let client = Client::new();
 
     let response = client
         .get(&url)
-        .header("Authorization", format!("Bot {}", secrets::get_secret("DISCORD_TOKEN")))
+        .header(
+            "Authorization",
+            format!("Bot {}", secrets::get_secret("DISCORD_TOKEN")),
+        )
         .send()
         .await?;
 
