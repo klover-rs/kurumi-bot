@@ -1,6 +1,6 @@
-use crate::{secrets, Context, Error};
-
 use crate::utils::system_usage;
+use crate::{secrets, Context, Error};
+use os_info::Info;
 use reqwest::Client;
 use rustc_version::version_meta;
 
@@ -16,6 +16,15 @@ use crate::download_docs;
 pub async fn info(ctx: Context<'_>) -> Result<(), Error> {
     let mem_usage = system_usage::memusage()?;
     let version = version_meta()?;
+    let os_info = os_info::get();
+    let os_type = Info::os_type(&os_info);
+    let os_version = Info::version(&os_info);
+    let arch_type = Info::architecture(&os_info).unwrap();
+    let emoji = match os_type {
+        os_info::Type::Macos => "<:macos:1226318390340227192>",
+        os_info::Type::Windows => "<:Windows:1226318419583045653>",
+        _ => "<:Linux:1226318441124859944>",
+    };
 
     println!("Rustc version: {}", version.semver);
     println!("Channel: {:?}", version.channel);
@@ -27,31 +36,40 @@ pub async fn info(ctx: Context<'_>) -> Result<(), Error> {
     let info = download_docs::fetch_docs(&"info.md").await.unwrap();
     println!("{}", &info);
 
-    ctx.send(CreateReply::default().embed(
-        CreateEmbed::default()
-        .title("Info")
-        .description(&info)
-        .field(
-            "Memory usage <:RAM:1215414863938068620>",
-            format!("{} / {} MB", mem_usage.used_mem, mem_usage.total_mem),
-            true,
-        )
-        .field(
-            "Rust version <:rust:1215414883072483328>",
-            format!(
-                "Version: `{}`\nChannel: `{:?}`",
-                version.semver, version.channel
-            ),
-            true
-        )
-        .author(
-            CreateEmbedAuthor::new(
-                format!("owner: {}", &user_info.username)
-            )
-            .url("https://github.com/mari-rs")
-            .icon_url(&user_info.avatar)
-        )
-    )).await?;
+    ctx.send(
+        CreateReply::default().embed(
+            CreateEmbed::default()
+                .title("Info")
+                .description(&info)
+                .field(
+                    "Memory usage <:RAM:1215414863938068620>",
+                    format!("{} / {} MB", mem_usage.used_mem, mem_usage.total_mem),
+                    true,
+                )
+                .field(
+                    "Rust version <:rust:1215414883072483328>",
+                    format!(
+                        "Version: `{}`\nChannel: `{:?}`",
+                        version.semver, version.channel
+                    ),
+                    true,
+                )
+                .field(
+                    format!("OS Information {}", emoji),
+                    format!(
+                        "Name: {} \nVersion: {}\nArchitecture: {}",
+                        os_type, os_version, arch_type
+                    ),
+                    true,
+                )
+                .author(
+                    CreateEmbedAuthor::new(format!("owner: {}", &user_info.username))
+                        .url("https://github.com/mari-rs")
+                        .icon_url(&user_info.avatar),
+                ),
+        ),
+    )
+    .await?;
 
     Ok(())
 }
@@ -62,14 +80,16 @@ struct UserInfo {
     avatar: String,
 }
 
-
 async fn fetch_user_info(user_id: &str) -> Result<UserInfo, Box<dyn std::error::Error>> {
     let url = format!("https://discord.com/api/v9/users/{}", user_id);
     let client = Client::new();
 
     let response = client
         .get(&url)
-        .header("Authorization", format!("Bot {}", secrets::get_secret("DISCORD_TOKEN")))
+        .header(
+            "Authorization",
+            format!("Bot {}", secrets::get_secret("DISCORD_TOKEN")),
+        )
         .send()
         .await?;
 
