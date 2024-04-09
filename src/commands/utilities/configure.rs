@@ -1,4 +1,4 @@
-use crate::{Context, Error};
+use crate::{Context, Error, PrintError};
 use std::time::Instant;
 
 use crate::db::configuration::Database;
@@ -75,76 +75,79 @@ pub async fn upload(
                 }
             };
 
-            let channel_id = match phrased.get("log_channel_id") {
-                Some(v) => {
-                    match v.as_str() {
-                        Some(str_value) => {
-                            match str_value.parse::<u64>() {
-                                Ok(id) => ChannelId::from(id),
-                                Err(_) => {
-                                    ctx.send(
-                                        CreateReply::default().embed(CreateEmbed::default()
-                                            .title("Error")
-                                            .description("log_channel_id is not a valid u64")
-                                        )
-                                    ).await?;
-                                    return Ok(());
-                                }
-                            }
-                        }
-                        None => {
-                            ctx.send(
-                                CreateReply::default().embed(CreateEmbed::default()
-                                    .title("Error")
-                                    .description("log_channel_id is not a string")
-                                )
-                            ).await?;
-                            return Ok(());
-                        }
-                    }
-                }
-                None => {
-                    ctx.send(
-                        CreateReply::default().embed(CreateEmbed::default()
-                            .title("Error")
-                            .description("log_channel_id doesnt exist in your json file configuration.")
-                        )
-                    ).await?;
-                    return Ok(());
-                }
-            };
 
-            //here we want to check if the channel id belongs to the guild we got the id from
-            let guild_channel_id = match channel_id.to_channel(&ctx.http()).await {
-                Ok(v) => match v.guild() {
-                    Some(v) => v.guild_id,
-                    None => {
-                        ctx.send(
-                            CreateReply::default().embed(CreateEmbed::default()
-                                .title("Error")
-                                .description("log_channel_id is not in a guild")
-                            )
-                        ).await?;
-                        return Ok(());
+            let channels_to_check = vec!["log_channel_id", "mod_log_channel_id"];
+            let mut valid_channels = Vec::new();
+            let mut errors: Vec<String> = Vec::new();
+
+            for channel in channels_to_check {
+                let channel_id = match pharse_channel_id_serde(&phrased, channel) {
+                    Ok(v) => v,
+                    Err(e) => {
+                        let error_message = format!("Error processing channel '{}': {}", channel, e);
+                        errors.push(error_message);
+                        continue;
                     }
-                },
-                Err(e) => {
-                    ctx.send(
-                        CreateReply::default().embed(CreateEmbed::default()
-                            .title("Error")
-                            .description(format!("an error occurred while trying to get the channel:\n{}", &e.to_string()))
-                        )
-                    ).await?;
-                    return Ok(());
+                };
+
+                match channel_id {
+                    Some(v) => {
+                        let guild_channel_id = match v.to_channel(&ctx.http()).await {
+                            Ok(v) => match v.clone().guild() {
+                                Some(v) => v.guild_id,
+                                None => {
+                                    errors.push(format!("Error processing channel '{:?}': channel is not in a guild", v.id()));
+                                    continue;
+                                }
+                            },
+                            Err(e) => {
+                                errors.push(format!("Error processing channel '{}': {}", v, e));
+                                continue;
+                            }
+
+                        };
+
+                        if guild_channel_id == guild_id {
+                            valid_channels.push(v.to_string());
+                        }
+                    }
+                    None => {
+                        continue;
+                    }
                 }
-            };
-            if guild_channel_id == guild_id {
-                println!("channel is valid");
-                insert_config(ctx, guild_id.try_into()?, channel_id.try_into()?).await?;
+            }
+
+            for e in &errors {
+                println!("error: {}",  e);
+            }
+
+            if errors.len() > 0 {
+                ctx.send(
+                    CreateReply::default().embed(CreateEmbed::default()
+                        .title("Error")
+                        .description(format!("An error occurred while processing the json file\n\n{}", errors.join("\n--------------\n")))
+                    ).ephemeral(true)
+                ).await?;
+            
+            }
+
+            if valid_channels.len() > 0 {
+
+                let log_channel = if valid_channels.len() > 0 {
+                    Some(valid_channels[0].clone().parse::<i64>().unwrap())
+                } else {
+                    None
+                };
+                
+                let mod_log_channel = if valid_channels.len() > 1 {
+                    Some(valid_channels[1].clone().parse::<i64>().unwrap())
+                } else {
+                    None 
+                };
+                insert_config(ctx, guild_id.to_string().parse().unwrap(), log_channel, mod_log_channel).await?;
+
             }
             
-            println!("{:?}", phrased);
-
         }
         "toml" => {
             println!("file format is toml");
@@ -165,71 +168,75 @@ pub async fn upload(
                 }
             };
 
-            let channel_id = match toml_data.get("log_channel_id") {
-                Some(v) => {
-                    match v.as_str() {
-                        Some(str_value) => {
-                            match str_value.parse::<u64>() {
-                                Ok(id) => ChannelId::from(id),
-                                Err(_) => {
-                                    ctx.send(
-                                        CreateReply::default().embed(CreateEmbed::default()
-                                            .title("Error")
-                                            .description("log_channel_id is not a valid u64")
-                                        )
-                                    ).await?;
-                                    return Ok(());
-                                }
-                            }
-                        }
-                        None => {
-                            ctx.send(
-                                CreateReply::default().embed(CreateEmbed::default().
-                                    title("Error")
-                                    .description("log_channel_id is not a string")
-                                )
-                            ).await?;
-                            return Ok(());  
-                        }
-                    }
-                }
-                None => {
-                    ctx.send(
-                        CreateReply::default().embed(CreateEmbed::default()
-                            .title("Error")
-                            .description("log_channel_id doesnt exist in your toml file configuration.")
-                        )
-                    ).await?;
-                    return Ok(());
-                }
-            };
+            let channels_to_check = vec!["log_channel_id", "mod_log_channel_id"];
+            let mut valid_channels = Vec::new();
+            let mut errors: Vec<String> = Vec::new();
 
-            let guild_channel_id = match channel_id.to_channel(&ctx.http()).await {
-                Ok(v) => match v.guild() {
-                    Some(v) => v.guild_id,
-                    None => {
-                        ctx.send(
-                            CreateReply::default().embed(CreateEmbed::default()
-                                .title("Error")
-                                .description("log_channel_id is not in a guild")
-                            )
-                        ).await?;
-                        return Ok(());
+            for channel in channels_to_check {
+                let channel_id = match phrase_channel_id_toml(&toml_data, channel) {
+                    Ok(v) => v,
+                    Err(e) => {
+                        let error_message = format!("Error processing channel '{}': {}", channel, e);
+                        errors.push(error_message);
+                        continue;
                     }
-                },
-                Err(e) => {
-                    ctx.send(
-                        CreateReply::default().embed(CreateEmbed::default()
-                            .title("Error")
-                            .description(format!("an error occurred while trying to get the channel:\n{}", &e.to_string()))
-                        )
-                    ).await?;
-                    return Ok(());
+                };
+
+                match channel_id {
+                    Some(v) => {
+                        let guild_channel_id = match v.to_channel(&ctx.http()).await {
+                            Ok(v) => match v.clone().guild() {
+                                Some(v) => v.guild_id,
+                                None => {
+                                    errors.push(format!("Error processing channel '{:?}': channel is not in a guild", v.id()));
+                                    continue;
+                                }
+                            },
+                            Err(e) => {
+                                errors.push(format!("Error processing channel '{}': {}", v, e));
+                                continue;
+                            }
+                        };
+
+                        if guild_channel_id == guild_id {
+                            valid_channels.push(v.to_string());
+                        }
+                    }
+                    None => {
+                        continue;
+                    }
                 }
-            };
-            if guild_channel_id == guild_id {
-                println!("channel is valid");
-                insert_config(ctx, guild_id.try_into()?, channel_id.try_into()?).await?;
+            }
+
+            for e in &errors {
+                println!("error: {}",  e);
+            }
+
+            if errors.len() > 0 {
+                ctx.send(
+                    CreateReply::default().embed(CreateEmbed::default()
+                        .title("Error")
+                        .description(format!("An error occurred while processing the toml file\n\n{}", errors.join("\n--------------\n")))
+                    ).ephemeral(true)
+                ).await?;
+            
+            }
+
+            if valid_channels.len() > 0 {
+
+                let log_channel = if valid_channels.len() > 0 {
+                    Some(valid_channels[0].clone().parse::<i64>().unwrap())
+                } else {
+                    None
+                };
+                
+                let mod_log_channel = if valid_channels.len() > 1 {
+                    Some(valid_channels[1].clone().parse::<i64>().unwrap())
+                } else {
+                    None 
+                };
+                insert_config(ctx, guild_id.to_string().parse().unwrap(), log_channel, mod_log_channel).await?;
+
             }
         }
         _ => {
@@ -245,16 +252,65 @@ pub async fn upload(
     Ok(())
 }
 
-async fn insert_config(ctx: Context<'_>, guild_id: i64, log_channel: i64) -> Result<(), Error> {
+fn pharse_channel_id_serde(value: &serde_json::Value, key: &str) -> Result<Option<ChannelId>, Error> {
+
+    match value.get(key) {
+        Some(v) => {
+            match v.as_str() {
+                Some(str_value) => {
+                    match str_value.parse::<u64>() {
+                        Ok(id) => Ok(Some(ChannelId::from(id))),
+                        Err(e) => {
+                            
+                            return Err(Box::new(PrintError(format!("\nJson Error: {}", e))));
+                        }
+                    }
+                }
+                None => {
+                    return Err(Box::new(PrintError(format!("\nJson Error: {}", "not a string"))));
+                }
+            }
+        }
+        None => Ok(None),
+    }
+
+}
+
+
+fn phrase_channel_id_toml(value: &toml::Value, key: &str) -> Result<Option<ChannelId>, Error> {
+
+    match value.get(key) {
+        Some(v) => {
+            match v.as_str() {
+                Some(str_value) => {
+                    match str_value.parse::<u64>() {
+                        Ok(id) => Ok(Some(ChannelId::from(id))),
+                        Err(e) => {
+                            return Err(Box::new(PrintError(format!("\nJson Error: {}", e))));
+                        }
+                    }
+                }
+                None => {
+                    return Err(Box::new(PrintError(format!("\nJson Error: {}", "not a string"))));
+                }
+            }
+        }
+        None => Ok(None),
+    }
+
+}
+
+
+async fn insert_config(ctx: Context<'_>, guild_id: i64, log_channel: Option<i64>, mod_log_channel: Option<i64>) -> Result<(), Error> {
 
     let db = Database::new().await?;
     db.create_table().await?;
-    match db.insert(guild_id, log_channel).await {
+    match db.insert(guild_id, log_channel, mod_log_channel).await {
         Ok(_) => {
             ctx.send(
                 CreateReply::default().embed(CreateEmbed::default()
                     .title("Success")
-                    .description("log channel has been set to this channel")
+                    .description("Comfiguration has been updated.")
                 )
             ).await?;
         },
@@ -288,7 +344,7 @@ async fn insert_config(ctx: Context<'_>, guild_id: i64, log_channel: i64) -> Res
                     match mci.data.custom_id.as_str() {
                         "yes" => {
                             println!("yes");
-                            match db.update(guild_id, log_channel).await {
+                            match db.update(guild_id, log_channel, mod_log_channel).await {
                                 Ok(_) => {
                                     msg.edit(ctx, CreateReply::default().content(
                                         "updated configuration successfully"
@@ -344,7 +400,7 @@ pub async fn set(
 
     let log_channel = log_channel.to_string().parse::<i64>().unwrap();
     
-    insert_config(ctx, guild_id, log_channel).await?;
+    insert_config(ctx, guild_id, Some(log_channel), None).await?;
 
     Ok(())
 }
