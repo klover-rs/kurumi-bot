@@ -1,5 +1,8 @@
+use crate::commands::moderation::punishment::{self, PunishmentType};
 use crate::{Context, Error};
-use poise::serenity_prelude as serenity;
+use poise::serenity_prelude::model::user;
+use poise::serenity_prelude::{self as serenity, EditRole};
+
 
 use serenity::model::id::{UserId, GuildId};
 
@@ -39,9 +42,6 @@ pub async fn mute(
         }
     };
 
-    let reason = reason.unwrap_or("N/a".to_string());
-
-    
     
     let timestamp = match set_timestamp(ctx, unit, duration).await {
         Ok(timestamp) => {
@@ -59,55 +59,155 @@ pub async fn mute(
 
     let member = get_member(&ctx, guild_id, user.id).await;
 
-    if let Some(member) = member {
-        let roles = &member.roles;
+    let muter = get_member(&ctx, guild_id, ctx.author().id).await;
 
-        
-        let mut u64_roles: Vec<u64> = Vec::new();
-        for role_id in roles {
-            u64_roles.push(role_id.to_string().parse::<u64>().unwrap());
+    let top_role_muter = muter.clone().unwrap().highest_role_info(ctx);
+    let top_role_member = member.clone().unwrap().highest_role_info(ctx);
+
+    let guild = guild_id.to_partial_guild(ctx).await?;
+
+    let role = match guild.role_by_name("muted") {
+        Some(role) => role,
+        None => {
+
+            let reply = {
+                let components = vec![
+                    serenity::CreateActionRow::Buttons(vec![
+                        serenity::CreateButton::new("yes")
+                            .style(serenity::ButtonStyle::Success)
+                            .label("yes"),
+                        serenity::CreateButton::new("no")
+                            .style(serenity::ButtonStyle::Danger)
+                            .label("no"),
+                    ])
+                ];
+                CreateReply::default().content("Role 'muted' not found, do you want to create it?").components(components)
+            };
+
+            let msg = ctx.send(reply).await?;   
+
+            
+
+            while let Some(mci) = serenity::ComponentInteractionCollector::new(ctx.clone())
+                .author_id(ctx.author().id)
+                .channel_id(ctx.channel_id())
+                .timeout(std::time::Duration::from_secs(120))
+                .await
+            {
+                match mci.data.custom_id.as_str() {
+                    "yes" => {
+                        let new_role = guild.create_role(ctx, EditRole::default().name("muted").permissions(serenity::Permissions::empty())).await?;
+
+                        msg.edit(ctx, CreateReply::default().content(format!("created role <@&{}> successfully", new_role.id)).components(vec![])).await?;
+                    }
+                    "no" => {
+                        msg.edit(ctx, CreateReply::default().content("operation cancelled").components(vec![])).await?;
+                    }
+                    _ => {}
+                }
+
+                mci.create_response(ctx, serenity::CreateInteractionResponse::Acknowledge).await?;
+                break;
+            };
+
+            return Ok(());
         }
+    };
 
-        println!("u64_values: {:?}", u64_roles);
+    println!("role: {:?}", role);
+    
+    
 
-       
+    match (top_role_muter, top_role_member) {
+        (Some(top_role_muter), Some(top_role_member)) => {
+            if top_role_muter.1 > top_role_member.1 {
+                println!("you can mute this user");
+                
 
-        let database = Database::new().await.unwrap();
-
-        database.create_table().await.unwrap();
-
-        match database.insert(user.id.to_string().parse().unwrap(), ctx.guild_id().unwrap().into(), &reason, u64_roles, timestamp).await {
-            Ok(_) => {
-                ()
-            },
-            Err(e) => {
-                println!("Error: {:?}", e);
-                return Ok(());
+                mute_member(&ctx, &role.id, &member.unwrap(), guild_id.try_into()?, timestamp, reason.clone()).await?;
+                let time_now = chrono::Utc::now();
+        
+                ctx.send(CreateReply::default().embed(
+                    CreateEmbed::default()
+                    .title("Member has been muted")
+                    .description(format!("muted <@{}> successfully", user.id))
+                    .fields(vec![
+                        ("User", format!("<@{}>", user.id), true),
+                        ("Reason", format!("{}", &reason.unwrap_or("no reason".to_string())), true),
+                        ("Muted until", format!("<t:{}:R>", timestamp), true), 
+                    ])
+                    .timestamp(time_now)
+                    .color(0xFF0000)
+            
+                )).await?;
+            } else {
+                println!("you cant mute this user");
+                ctx.send(CreateReply::default().content("you cant mute this user, because they have a higher role than you").ephemeral(true)).await?;
             }
         }
-
-        //None is in this case removing ALL ROLES, SO BE CAREFUL HOW YOU USE THIS FUNCTION AND ITS ARGUMENTS PLEASE :3
-        manage_roles(None, user.id.into(), ctx.guild_id().unwrap().into()).await.unwrap();
-
-        let time_now = chrono::Utc::now();
+        (Some(_top_role_muter), None) => {
+            println!("you can mute this user");
+            mute_member(&ctx, &role.id, &member.unwrap(), guild_id.try_into()?, timestamp, reason.clone()).await?;
+            let time_now = chrono::Utc::now();
         
-        ctx.send(CreateReply::default().embed(
-            CreateEmbed::default()
-            .title("Member has been muted")
-            .description(format!("muted <@{}> successfully", user.id))
-            .fields(vec![
-                ("User", format!("<@{}>", user.id), true),
-                ("Reason", format!("{}", &reason), true),
-                ("Muted until", format!("<t:{}:R>", timestamp), true), 
-            ])
-            .timestamp(time_now)
-            .color(0xFF0000)
-            
-        )).await?;
+            ctx.send(CreateReply::default().embed(
+                CreateEmbed::default()
+                .title("Member has been muted")
+                .description(format!("muted <@{}> successfully", user.id))
+                .fields(vec![
+                    ("User", format!("<@{}>", user.id), true),
+                    ("Reason", format!("{}", &reason.unwrap_or("no reason".to_string())), true),
+                    ("Muted until", format!("<t:{}:R>", timestamp), true), 
+                ])
+                .timestamp(time_now)
+                .color(0xFF0000)
         
-    } else {
-        println!("Member not found");
+            )).await?;
+
+        }
+        _ => {
+            ctx.send(CreateReply::default().content("you cant mute this user, because you have no roles, read the docs for more informations.").ephemeral(true)).await?;
+        } 
     }
+
+    Ok(())
+}
+
+async fn mute_member(ctx: &Context<'_>, muted_role: &serenity::RoleId, member: &serenity::Member, guild_id: i64, duration: i64, reason: Option<String>) -> Result<(), Error> {
+    let roles = &member.roles;
+
+    let mut u64_roles: Vec<u64> = Vec::new();
+
+    for role_id in roles {
+        u64_roles.push(role_id.to_string().parse::<u64>().unwrap());
+    }
+
+    println!("u64_values: {:?}", u64_roles);
+
+    let db = Database::new().await?;
+    db.create_table().await?;
+
+    let user_id = member.user.id.to_string().parse::<i64>().unwrap();
+    
+    let reason_str = reason.clone().unwrap_or("N/a".to_string());
+
+    db.insert(user_id, guild_id, &reason_str, u64_roles, duration).await?;
+
+    manage_roles(None, user_id, guild_id).await?;
+
+    member.add_role(ctx, muted_role).await?;
+
+    let punishment = punishment::Punishment {
+        user_id: user_id,
+        reason: reason,
+        punishment_type: PunishmentType::Mute,
+        moderator_id: ctx.author().id.try_into().unwrap(),
+        guild_id: guild_id.try_into().unwrap(),
+        duration: Some(duration),
+        delete_messages: None
+    };
+
+    punishment::send_to_mod_log_channel(*ctx, &punishment).await?;
 
     Ok(())
 }
@@ -160,10 +260,6 @@ pub async fn unmute(
             return Ok(());
         }
     }
-
-   
-
-
 
     Ok(())
 }
