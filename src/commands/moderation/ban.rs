@@ -6,6 +6,8 @@ use serenity::model::id::{UserId, GuildId};
 
 use poise::CreateReply;
 
+use crate::commands::moderation::punishment;
+
 use serenity::model::guild::Member;
 
 #[poise::command(
@@ -38,7 +40,18 @@ pub async fn ban(
         Some(member) => {
             match member.ban(&ctx, delete_message_days).await {
                 Ok(_) => {
-                    ctx.say(format!("banned {}\nreason: {}", user.name, reason.unwrap_or("not provided.".to_string()))).await?;
+                    ctx.say(format!("banned {}\nreason: {}", user.name, reason.clone().unwrap_or("not provided.".to_string()))).await?;
+
+                    let punishment = punishment::Punishment {
+                        user_id: user.id.try_into().unwrap(),
+                        reason: reason,
+                        punishment_type: punishment::PunishmentType::Ban,
+                        moderator_id: ctx.author().id.try_into().unwrap(),
+                        guild_id: ctx.guild_id().unwrap().try_into().unwrap(),
+                        duration: None,
+                        delete_messages: delete_messages
+                    };
+                    punishment::send_to_mod_log_channel(ctx, &punishment).await?;
                 }
                 Err(PoiseError::Model(ModelError::GuildNotFound)) => {
                     ctx.say("Member not found").await?;
