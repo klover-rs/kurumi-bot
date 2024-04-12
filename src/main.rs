@@ -9,7 +9,7 @@ mod rich_presence;
 mod secrets;
 mod utils;
 
-use image_to_ascii::init as image_to_ascii_init;
+
 
 use commands::{
     help::*,
@@ -26,7 +26,6 @@ use commands::{
     utils::*,
 };
 
-use dotenv::dotenv;
 
 // Types used by all command functions
 type Error = Box<dyn std::error::Error + Send + Sync>;
@@ -73,7 +72,7 @@ async fn on_error(error: poise::FrameworkError<'_, Data, Error>) {
 
 #[tokio::main]
 async fn main() {
-    dotenv().ok();
+    
 
     env_logger::init();
 
