@@ -21,7 +21,7 @@ use commands::{
     },
     rps::*,
     timer::*,
-    user::{avatar::avatar, neko_commands::neko, snipe::snipe},
+    user::{avatar::avatar, neko_commands::neko, snipe::snipe, math::math::math},
     utilities::configure::configure,
     utils::*,
 };
@@ -108,7 +108,7 @@ async fn main() {
                 rock_paper_scissors(),
                 timer(),
                 ping(),
-
+                math(),
                 snipe(),
             ],
             on_error: |error| Box::pin(on_error(error)),
