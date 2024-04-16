@@ -49,7 +49,6 @@ impl Database {
 
     pub async fn insert(
         &self,
-
         uid: i64,
         guild_id: i64,
         reason: &str,
@@ -62,14 +61,14 @@ impl Database {
             .map(|&role| role.to_string())
             .collect::<Vec<String>>()
             .join(",");
-        let trans = self.pool.begin().await?;
+        
         let q = sqlx::query(
             "INSERT INTO muted (uid, guild_id, reason, roles, duration) VALUES ($1, $2, $3, $4, $5)",
           
         );
 
         q.bind(uid).bind(guild_id).bind(reason).bind(roles_str).bind(duration).execute(&mut *transaction).await?;
-        trans.commit().await?;
+        transaction.commit().await?;
         Ok(())
     }
 
@@ -101,14 +100,13 @@ impl Database {
     }
 
     pub async fn delete(&self, uid: i64) -> Result<(), Error> {
-        let trans = self.pool.begin().await?;
         let mut transaction = self.pool.begin().await?;
 
         let q = sqlx::query("DELETE FROM muted WHERE uid = $1");
 
         q.bind(uid).execute(&mut *transaction).await?;
 
-        trans.commit().await?;
+        transaction.commit().await?;
         Ok(())
     }
 }

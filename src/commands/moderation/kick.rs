@@ -9,6 +9,8 @@ use serenity::model::guild::Member;
 use poise::CreateReply;
 use serenity::builder::CreateEmbed;
 
+use crate::commands::moderation::punishment::{self, *};
+
 #[poise::command(
     prefix_command,
     slash_command,
@@ -38,9 +40,21 @@ pub async fn kick(
                         CreateEmbed::default()
                             .title("Kicked")
                             .description(format!(
-                                "kicked {}\nreason: {}", user.name, &reason.unwrap_or("not provided.".to_string())
+                                "kicked {}\nreason: {}", user.name, &reason.clone().unwrap_or("not provided.".to_string())
                             )) 
                     )).await?; 
+
+                    
+                    let punishment = punishment::Punishment {
+                        user_id: user.id.try_into().unwrap(),
+                        reason: reason,
+                        punishment_type: PunishmentType::Kick,
+                        moderator_id: ctx.author().id.try_into().unwrap(),
+                        guild_id: guild_id.try_into().unwrap(),
+                        duration: None,
+                        delete_messages: None
+                    };
+                    punishment::send_to_mod_log_channel(ctx, &punishment).await?;
                 }
                 Err(PoiseError::Model(ModelError::GuildNotFound)) => {
                     ctx.send(CreateReply::default().content("Member not found").ephemeral(true)).await?;

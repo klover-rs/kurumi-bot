@@ -1,4 +1,6 @@
-pub mod image_to_ascii;
+
 pub mod neko;
 pub mod neko_commands;
 pub mod snipe;
+pub mod avatar;
+pub mod math;

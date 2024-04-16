@@ -19,14 +19,11 @@ fastrand = "2.0.1"
 discord-presence = "1.0.0"
 env_logger = "0.11.3"
 regex = "1.10.3"
-bb8 = "0.8.3"
-bb8-postgres = "0.8.1"
-tokio-postgres = "0.7.10"
 actix-web = "4.5.1"
-image_to_ascii = { path = "./src/crates/image_to_ascii"}
 sqlx = {version = "0.7.4", features = ["postgres", "runtime-tokio-rustls"]}
-dotenv = "0.15.0"
 serde = "1.0.197"
+os_info = "3.8.2"
+image = "0.24.0"
 
 [dependencies.nekoslife]
 version = "0.2.1"
