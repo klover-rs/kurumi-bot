@@ -3,7 +3,7 @@ use crate::{Context, Error};
 use std::io::Cursor;
 
 
-use image::GenericImageView;
+use image::{GenericImageView, DynamicImage};
 
 use reqwest::Client;
 use poise::serenity_prelude::{self as serenity, CreateAttachment};
@@ -13,7 +13,7 @@ use serenity::builder::CreateEmbed;
 
 use poise::CreateReply;
 
-#[derive(Debug, poise::ChoiceParameter)]
+#[derive(Debug, Clone, Copy, poise::ChoiceParameter)]
 enum ImageFormat {
     Png,
     Jpeg,
@@ -94,41 +94,56 @@ pub async fn avatar(
 }
 
 async fn use_filters(ctx: Context<'_>, bytes: Vec<u8>, image_format: Option<ImageFormat>, grayscale: Option<bool>, invert: Option<bool>, sepia_tone: Option<bool>, blur: Option<u8>) -> Result<(), Error> {
-    let mut edited_bytes = bytes.clone();
+
+
+    let mut img = match image::load_from_memory(&bytes) {
+        Ok(img) => img,
+        Err(err) => {
+            ctx.send(
+                CreateReply::default().embed(
+                    CreateEmbed::default()
+                        .title("Error")
+                        .description(err.to_string())
+                        .color(serenity::colours::roles::DARK_RED),
+                ),
+            )
+            .await?;
+            return Ok(());
+        }
+    };
+
     match grayscale {
         Some(true) => {
-            edited_bytes = apply_grayscale(ctx,  &image_format,bytes).await?;
-                        
+            apply_grayscale(&mut img);     
         }
         _ => {
-                        
+
         }
     }
 
     match invert {
         Some(true) => {
-            edited_bytes = apply_inverted(ctx, &image_format ,edited_bytes).await?;
+            apply_inverted(&mut img);
         }
         _ => {
-                        
         }
     }
 
     match sepia_tone {
         Some(true) => {
-            edited_bytes = apply_sepia_tone(ctx, &image_format ,edited_bytes).await?;
+            apply_sepia(&mut img);
         }
         _ => {}
     }
 
     match blur {
         Some(amount) => {
-            edited_bytes = apply_blur(ctx, &image_format ,edited_bytes, amount as f32).await?;
+            apply_blur(&mut img, amount as f32);
         }
         _ => {}
     }
     
-    let image_format = match image_format {
+    let image_format_str = match image_format {
         Some(format) => match format {
             ImageFormat::Png => "png",
             ImageFormat::Jpeg => "jpeg",
@@ -136,69 +151,29 @@ async fn use_filters(ctx: Context<'_>, bytes: Vec<u8>, image_format: Option<Imag
         }
         _ => "png"
     };
+    let image_format = match image_format {
+        Some(format) => match format {
+            ImageFormat::Png => image::ImageOutputFormat::Png,
+            ImageFormat::Jpeg => image::ImageOutputFormat::Jpeg(100),
+            ImageFormat::Webp => image::ImageOutputFormat::WebP
+        }
+        _ => image::ImageOutputFormat::Png
+    };
+
+    let mut output_buffer = Cursor::new(Vec::new());
+
+    img.write_to(&mut output_buffer, image_format).unwrap();
     
-    ctx.send(CreateReply::default().content("Avatar").attachment(CreateAttachment::bytes(edited_bytes, format!("avatar.{}", image_format)))).await?;
+    ctx.send(CreateReply::default().content("Avatar").attachment(CreateAttachment::bytes(output_buffer.into_inner(), format!("avatar.{}", image_format_str)))).await?;
 
     Ok(())
 }
 
-async fn apply_grayscale(ctx: Context<'_>, img_format: &Option<ImageFormat>, buffer: Vec<u8>) -> Result<Vec<u8>, Error> {
-    let img = match image::load_from_memory(&buffer) {
-        Ok(img) => img,
-        Err(e) => {
-            ctx.send(CreateReply::default().embed(
-                CreateEmbed::default().title("Error").description(format!("Failed to load image\nerror: {}", e)).color(0xFF0000)
-            )).await?;
-            return Err(Box::new(PrintError(format!("Error: {}", e))))
-        }
-    };
-
-    let gray_img = img.grayscale();
-
-    let mut output_buffer = Cursor::new(Vec::new());
-    match img_format {
-        Some(format) => {
-            let format = match format {
-                ImageFormat::Jpeg => image::ImageOutputFormat::Jpeg(100),
-                ImageFormat::Webp => image::ImageOutputFormat::WebP,
-                ImageFormat::Png => image::ImageOutputFormat::Png,
-            };
-
-            match gray_img.write_to(&mut output_buffer, format) {
-                Ok(_) => Ok(output_buffer.into_inner()),
-                Err(e) => {
-                    ctx.send(CreateReply::default().embed(
-                        CreateEmbed::default().title("Error").description(format!("Failed to apply grayscale filter\nerror: {}", e)).color(0xFF0000)
-                    )).await?;
-                    return Err(Box::new(PrintError(format!("Error: {}", e))));
-                }
-            }
-        }
-        None => {
-            match gray_img.write_to(&mut output_buffer, image::ImageOutputFormat::Png) {
-                Ok(_) => Ok(output_buffer.into_inner()),
-                Err(e) => {
-                    ctx.send(CreateReply::default().embed(
-                        CreateEmbed::default().title("Error").description(format!("Failed to apply grayscale filter\nerror: {}", e)).color(0xFF0000)
-                    )).await?;
-                    return Err(Box::new(PrintError(format!("Error: {}", e))));
-                }
-            }
-        }
-    }
+fn apply_grayscale(img: &mut DynamicImage) {
+    *img = img.grayscale();
 }
 
-async fn apply_inverted(ctx: Context<'_>,  img_format: &Option<ImageFormat>, buffer: Vec<u8>) -> Result<Vec<u8>, Error> {
-    let img = match image::load_from_memory(&buffer) {
-        Ok(img) => img,
-        Err(e) => {
-            ctx.send(CreateReply::default().embed(
-                CreateEmbed::default().title("Error").description(format!("Failed to load image\nerror: {}", e)).color(0xFF0000)
-            )).await?;
-            return Err(Box::new(PrintError(format!("Error: {}", e))))
-        }
-    };
-
+fn apply_inverted(img: &mut DynamicImage) {
     let (width, height) = img.dimensions();
     let mut inverted_img = image::ImageBuffer::new(width, height);
 
@@ -209,62 +184,14 @@ async fn apply_inverted(ctx: Context<'_>,  img_format: &Option<ImageFormat>, buf
             255 - pixel[2],
         ]);
         inverted_img.put_pixel(x, y, inverted_pixel);
-    } 
-
-    let mut output_buffer = Cursor::new(Vec::new());
-
-    match img_format {
-        Some(format) => {
-            let format = match format {
-                ImageFormat::Jpeg => image::ImageOutputFormat::Jpeg(100),
-                ImageFormat::Webp => image::ImageOutputFormat::WebP,
-                ImageFormat::Png => image::ImageOutputFormat::Png,
-            };
-
-            match inverted_img.write_to(&mut output_buffer, format) {
-                Ok(_) => Ok(output_buffer.into_inner()),
-                Err(e) => {
-                    ctx.send(CreateReply::default().embed(
-                        CreateEmbed::default().title("Error").description(format!("Failed to apply grayscale filter\nerror: {}", e)).color(0xFF0000)
-                    )).await?;
-                    return Err(Box::new(PrintError(format!("Error: {}", e))));
-                }
-            }
-        }
-        None => {
-            match inverted_img.write_to(&mut output_buffer, image::ImageOutputFormat::Png) {
-                Ok(_) => Ok(output_buffer.into_inner()),
-                Err(e) => {
-                    ctx.send(CreateReply::default().embed(
-                        CreateEmbed::default().title("Error").description(format!("Failed to apply grayscale filter\nerror: {}", e)).color(0xFF0000)
-                    )).await?;
-                    return Err(Box::new(PrintError(format!("Error: {}", e))));
-                }
-            }
-        }
     }
-    
-   
 
+    *img = DynamicImage::ImageRgb8(inverted_img);
 }
 
-async fn apply_sepia_tone(
-    ctx: Context<'_>,
-    img_format: &Option<ImageFormat>,
-    buffer: Vec<u8>,
-) -> Result<Vec<u8>, Error> {
-    let img = match image::load_from_memory(&buffer) {
-        Ok(img) => img,
-        Err(e) => {
-            ctx.send(CreateReply::default().embed(
-                CreateEmbed::default().title("Error").description(format!("Failed to load image\nerror: {}", e)).color(0xFF0000)
-            )).await?;
-            return Err(Box::new(PrintError(format!("Error: {}", e))));
-        }
-    };
-
+fn apply_sepia(img: &mut DynamicImage) {
     let mut sepia_tone_img = img.to_rgb8();
-    
+
     for pixel in sepia_tone_img.pixels_mut() {
         let (r, g, b) = (pixel[0], pixel[1], pixel[2]);
 
@@ -275,91 +202,13 @@ async fn apply_sepia_tone(
         *pixel = image::Rgb([tr, tg, tb]);
 
     }
-    let mut output_buffer = Cursor::new(Vec::new());
-    match img_format {
-        Some(format) => {
-            let format = match format {
-                ImageFormat::Jpeg => image::ImageOutputFormat::Jpeg(100),
-                ImageFormat::Webp => image::ImageOutputFormat::WebP,
-                ImageFormat::Png => image::ImageOutputFormat::Png,
-            };
 
-            match sepia_tone_img.write_to(&mut output_buffer, format) {
-                Ok(_) => Ok(output_buffer.into_inner()),
-                Err(e) => {
-                    ctx.send(CreateReply::default().embed(
-                        CreateEmbed::default().title("Error").description(format!("Failed to apply grayscale filter\nerror: {}", e)).color(0xFF0000)
-                    )).await?;
-                    return Err(Box::new(PrintError(format!("Error: {}", e))));
-                }
-            }
-        }
-        None => {
-            let mut output_buffer = Cursor::new(Vec::new());
-            match sepia_tone_img.write_to(&mut output_buffer, image::ImageOutputFormat::Png) {
-                Ok(_) => Ok(output_buffer.into_inner()),
-                Err(e) => {
-                    ctx.send(CreateReply::default().embed(
-                        CreateEmbed::default().title("Error").description(format!("Failed to apply grayscale filter\nerror: {}", e)).color(0xFF0000)
-                    )).await?;
-                    return Err(Box::new(PrintError(format!("Error: {}", e))));
-                }
-            }
-        }
-    }
-
+    *img = DynamicImage::ImageRgb8(sepia_tone_img);
     
-  
-
 }
 
-async fn apply_blur(ctx: Context<'_>, img_format: &Option<ImageFormat>, buffer: Vec<u8>, sigma: f32) -> Result<Vec<u8>, Error> {
-    let img = match image::load_from_memory(&buffer) {
-        Ok(img) => img,
-        Err(e) => {
-            ctx.send(CreateReply::default().embed(
-                CreateEmbed::default().title("Error").description(format!("Failed to load image\nerror: {}", e)).color(0xFF0000)
-            )).await?;
-            return Err(Box::new(PrintError(format!("Error: {}", e))))
-        }
-    };
-
-    let blurred_img = img.blur(sigma);
-
-    let mut output_buffer = Cursor::new(Vec::new());
-
-    match img_format {
-        Some(format) => {
-            let format = match format {
-                ImageFormat::Jpeg => image::ImageOutputFormat::Jpeg(100),
-                ImageFormat::Webp => image::ImageOutputFormat::WebP,
-                ImageFormat::Png => image::ImageOutputFormat::Png,
-            };
-            
-            match blurred_img.write_to(&mut output_buffer, format) {
-                Ok(_) => Ok(output_buffer.into_inner()),
-                Err(e) => {
-                    ctx.send(CreateReply::default().embed(
-                        CreateEmbed::default().title("Error").description(format!("Failed to save image\nerror: {}", e)).color(0xFF0000)
-                    )).await?;
-                    Err(Box::new(PrintError(format!("Error: {}", e))))
-                }
-            }
-        }
-        None => {
-            let mut output_buffer = Cursor::new(Vec::new());
-            match blurred_img.write_to(&mut output_buffer, image::ImageOutputFormat::Png) {
-                Ok(_) => Ok(output_buffer.into_inner()),
-                Err(e) => {
-                    ctx.send(CreateReply::default().embed(
-                        CreateEmbed::default().title("Error").description(format!("Failed to save image\nerror: {}", e)).color(0xFF0000)
-                    )).await?;
-                    Err(Box::new(PrintError(format!("Error: {}", e))))
-                }
-            }
-        }
-    }
-
+fn apply_blur(img: &mut DynamicImage, radius: f32) {
+    *img = img.blur(radius);
 }
 
 
