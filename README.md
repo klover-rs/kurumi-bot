@@ -26,6 +26,8 @@ after you are in the query tool you can create a new database first for example
 ```SQL
 CREATE DATABASE my_bot
 ```
+after you have done this, dont forget to update your **Secrets.toml**
+
 you can do this in the query tool by using the following query
 ```SQL
 ALTER USER postgres PASSWORD 'your_password';
