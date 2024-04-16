@@ -13,8 +13,7 @@ pub async fn configure(
     ctx: Context<'_>,
 ) -> Result<(), Error> {
     
-    let result = download_docs::fetch_docs(&"commands/utilities/configure.md")
-        .await
+    let result = download_docs::get_docs(&"commands/utilities/configure.md")
         .unwrap();
 
     ctx.send(
