@@ -34,3 +34,6 @@ ALTER USER postgres PASSWORD 'your_password';
 ```
 
 after you have ensured that all these values are set start the discord bot with `cargo run`
+
+# What is the goal for this project
+This is mainly a fun project to demonstrate potential usages of the Rust language, our main motivation to maintain this project lays in creating a stable bot which can be hosted on any toaster!
