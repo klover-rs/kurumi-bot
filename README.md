@@ -8,9 +8,6 @@ once you have it create in ur project root dir a file called "Secrets.toml" you 
 ```toml
 DISCORD_TOKEN="replace with ur token"
 APP_ID="your app id"
-GITHUB_REPO="your github repo (e.g. Asm-Rosie/kurumi-bot)
-GITHUB_TOKEN="your github token"
-LOG_CHANNEL="channel id"
 BOT_ID = "bot user id here"
 DB_NAME = "my_bot"
 DB_PW = "your database password"
