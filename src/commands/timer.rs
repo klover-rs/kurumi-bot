@@ -2,9 +2,8 @@ use crate::{Context, Error};
 
 use crate::db::timer::Database;
 
-use std::time::Duration;
-
 use crate::download_docs;
+use std::time::Duration;
 
 use poise::serenity_prelude as serenity;
 
@@ -179,12 +178,10 @@ pub async fn delete(
     }
     Ok(())
 }
-/// Provides help information about command usage 
+/// Provides help information about command usage
 #[poise::command(prefix_command, slash_command)]
 async fn help(ctx: Context<'_>) -> Result<(), Error> {
-    let result = download_docs::fetch_docs("commands/timer.md")
-        .await
-        .unwrap();
+    let result = download_docs::get_docs(&"docs/commands/timer.md").unwrap();
 
     ctx.send(
         CreateReply::default().embed(

@@ -1,3 +1,5 @@
+use std::fs;
+
 use crate::{Context, Error};
 
 use crate::download_docs;
@@ -18,9 +20,7 @@ use serenity::builder::CreateEmbed;
 )]
 ///Get help for the neko commands
 pub async fn neko(ctx: Context<'_>) -> Result<(), Error> {
-    let result = download_docs::fetch_docs(&"commands/user/neko.md")
-        .await
-        .unwrap();
+    let result = download_docs::get_docs(&"docs/commands/user/neko.md").unwrap();
 
     ctx.send(
         CreateReply::default().embed(

@@ -33,7 +33,7 @@ pub async fn info(ctx: Context<'_>) -> Result<(), Error> {
         .await
         .expect("Failed to fetch user info");
 
-    let info = download_docs::fetch_docs(&"info.md").await.unwrap();
+    let info = download_docs::get_docs(&"docs/info.md").unwrap();
     println!("{}", &info);
 
     ctx.send(

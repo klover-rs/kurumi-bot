@@ -5,7 +5,6 @@ use std::io::Cursor;
 
 use image::GenericImageView;
 
-use regex::bytes;
 use reqwest::Client;
 use poise::serenity_prelude::{self as serenity, CreateAttachment};
 

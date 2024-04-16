@@ -1,11 +1,11 @@
 use crate::{Context, Error, PrintError};
-use std::time::Instant;
+
 
 use crate::db::configuration::Database;
 
 use crate::download_docs;
 
-use poise::{serenity_prelude::{self as serenity, model::channel, ChannelId}, CreateReply};
+use poise::{serenity_prelude::{self as serenity, ChannelId}, CreateReply};
 use serenity::builder::CreateEmbed;
 
 #[poise::command(prefix_command, slash_command, required_permissions = "ADMINISTRATOR", subcommands("upload", "set", "get", "clear"))]
@@ -13,9 +13,7 @@ pub async fn configure(
     ctx: Context<'_>,
 ) -> Result<(), Error> {
     
-    let result = download_docs::fetch_docs(&"commands/utilities/configure.md")
-        .await
-        .unwrap();
+    let result = download_docs::get_docs(&"docs/commands/utilities/configure.md").unwrap();
 
     ctx.send(
         CreateReply::default().embed(

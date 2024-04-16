@@ -1,7 +1,7 @@
 use crate::secrets::get_secret;
 use crate::Error;
 
-use sqlx::{Row, Transaction};
+use sqlx::Row;
 pub struct DatabaseMsgLogs {
     pool: sqlx::PgPool,
 }

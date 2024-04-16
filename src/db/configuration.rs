@@ -1,5 +1,4 @@
 use crate::{secrets::get_secret, PrintError};
-use actix_web::http::header::Preference;
 use serde::{Deserialize, Serialize};
 use crate::Error;
 use sqlx::{postgres::PgRow, PgPool, Row};
