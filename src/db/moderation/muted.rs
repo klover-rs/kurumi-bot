@@ -1,7 +1,6 @@
 use crate::secrets::get_secret;
 use crate::Error;
 use sqlx::Row;
-use sqlx::postgres::PgRow;
 use sqlx::PgPool;
 
 pub struct Database {

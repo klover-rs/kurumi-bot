@@ -1,6 +1,5 @@
 use crate::commands::moderation::punishment::{self, PunishmentType};
 use crate::{Context, Error};
-use poise::serenity_prelude::model::user;
 use poise::serenity_prelude::{self as serenity, EditRole};
 
 
