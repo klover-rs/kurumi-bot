@@ -1,4 +1,4 @@
-use std::fmt::format;
+
 use std::vec;
 
 use crate::{Context, Error};

@@ -1,11 +1,11 @@
 use crate::{Context, Error, PrintError};
-use std::time::Instant;
+
 
 use crate::db::configuration::Database;
 
 use crate::download_docs;
 
-use poise::{serenity_prelude::{self as serenity, model::channel, ChannelId}, CreateReply};
+use poise::{serenity_prelude::{self as serenity, ChannelId}, CreateReply};
 use serenity::builder::CreateEmbed;
 
 #[poise::command(prefix_command, slash_command, required_permissions = "ADMINISTRATOR", subcommands("upload", "set", "get", "clear"))]

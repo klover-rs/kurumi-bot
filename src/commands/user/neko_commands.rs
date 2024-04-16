@@ -1,5 +1,3 @@
-use std::fs;
-
 use crate::{Context, Error};
 
 use crate::download_docs;
