@@ -79,7 +79,7 @@ async fn main() {
 
     let token = secrets::get_secret("DISCORD_TOKEN");
     let intents =
-        serenity::GatewayIntents::non_privileged() | serenity::GatewayIntents::MESSAGE_CONTENT;
+        serenity::GatewayIntents::non_privileged() | serenity::GatewayIntents::MESSAGE_CONTENT | serenity::GatewayIntents::GUILD_MEMBERS;
 
     let framework = poise::Framework::builder()
         .setup(move |_ctx, _ready, _framework| {
@@ -189,6 +189,10 @@ async fn event_handler(
                     println!("edited content is None\n--------------------------------");
                 }
             }
+        }
+        serenity::FullEvent::GuildMemberAddition { new_member } => {
+            println!("new member: {}\n--------------------------------", new_member.user.name);
+            handler::member_join::member_join(new_member, ctx).await?;
         }
         _ => {}
     }
