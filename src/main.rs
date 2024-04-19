@@ -151,7 +151,7 @@ async fn event_handler(
             handler::message_logging::handle_messages(new_message, _framework)
                 .await
                 .unwrap();
-            handler::xp::xp_handler::handle_xp(new_message).await.unwrap();
+            handler::xp_handler::handle_xp(new_message).await.unwrap();
             handler::messages_reactions::message_reactions(new_message, &ctx).await?;
         }
         serenity::FullEvent::MessageDelete {
