@@ -1,7 +1,7 @@
 use crate::PrintError;
 use crate::{Context, Error};
 use std::io::Cursor;
-use crate::commands::user::avatar::{grayscale::apply_grayscale, invert::apply_invert, gpu_init::{ADAPTER, DEVICE_QUEUE, INSTANCE}};
+use crate::commands::user::avatar::{grayscale::apply_grayscale, invert::apply_invert, sepia::apply_sepia, gpu_init::{ADAPTER, DEVICE_QUEUE, INSTANCE}};
 
 use image::{GenericImageView, DynamicImage};
 
@@ -95,8 +95,8 @@ pub async fn avatar(
 
 async fn use_filters(ctx: Context<'_>, bytes: Vec<u8>, image_format: Option<ImageFormat>, grayscale: Option<bool>, invert: Option<bool>, sepia_tone: Option<bool>, blur: Option<u8>) -> Result<(), Error> {
 
-    let instance = &INSTANCE;
-    let adapter = &ADAPTER;
+    let start = std::time::Instant::now();
+
     let device = &DEVICE_QUEUE.0;
     let queue = &DEVICE_QUEUE.1;
 
@@ -150,7 +150,6 @@ async fn use_filters(ctx: Context<'_>, bytes: Vec<u8>, image_format: Option<Imag
     match grayscale {
         Some(true) => {
             apply_grayscale(&mut img, width, height, &input_texture, &output_texture, &texture_size, &device, &queue)?;     
-            used_encoder.push_str("gpu acceleration (unoptimized)");
         }
         _ => {
 
@@ -160,6 +159,15 @@ async fn use_filters(ctx: Context<'_>, bytes: Vec<u8>, image_format: Option<Imag
     match invert {
         Some(true) => {
             apply_invert(&mut img, width, height, &input_texture, &output_texture, &texture_size, &device, &queue)?;
+            used_encoder.push_str("gpu acceleration (unoptimized)");
+        }
+        _ => {
+        }
+    }
+
+    match sepia_tone {
+        Some(true) => {
+            apply_sepia(&mut img, width, height, &input_texture, &output_texture, &texture_size, &device, &queue)?;
             used_encoder.push_str("gpu acceleration (unoptimized)");
         }
         _ => {
@@ -188,8 +196,10 @@ async fn use_filters(ctx: Context<'_>, bytes: Vec<u8>, image_format: Option<Imag
     let mut output_buffer = Cursor::new(Vec::new());
 
     img.write_to(&mut output_buffer, image_format).unwrap();
+
+    let elapsed = start.elapsed();
     
-    ctx.send(CreateReply::default().content("Avatar").attachment(CreateAttachment::bytes(output_buffer.into_inner(), format!("avatar.{}", image_format_str)))).await?;
+    ctx.send(CreateReply::default().content(format!("processed in: {}ms", elapsed.as_millis())).attachment(CreateAttachment::bytes(output_buffer.into_inner(), format!("avatar.{}", image_format_str)))).await?;
 
     Ok(())
 }
@@ -214,7 +224,7 @@ async fn use_filters(ctx: Context<'_>, bytes: Vec<u8>, image_format: Option<Imag
     *img = DynamicImage::ImageRgb8(inverted_img);
 }*/
 
-fn apply_sepia(img: &mut DynamicImage) {
+/*fn apply_sepia(img: &mut DynamicImage) {
     let mut sepia_tone_img = img.to_rgb8();
 
     for pixel in sepia_tone_img.pixels_mut() {
@@ -234,7 +244,7 @@ fn apply_sepia(img: &mut DynamicImage) {
 
 fn apply_blur(img: &mut DynamicImage, radius: f32) {
     *img = img.blur(radius);
-}
+}*/
 
 
 async fn download_avatar(ctx: Context<'_>, url: &str) -> Result<Vec<u8>, Error> {
