@@ -24,6 +24,11 @@ sqlx = {version = "0.7.4", features = ["postgres", "runtime-tokio-rustls"]}
 serde = "1.0.197"
 os_info = "3.8.2"
 image = "0.24.0"
+bytemuck = "1.9"
+pollster = "0.2"
+wgpu = "0.14"
+lazy_static = "1.4.0"
+
 
 [dependencies.nekoslife]
 version = "0.2.1"
