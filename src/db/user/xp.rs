@@ -55,24 +55,30 @@ impl Database {
     }
 
     pub async fn update(&self, uid: i64, guild_id: i64, xp: i64, rank: i64) -> Result<(), Error> {
-        let mut trans = self.pool.begin().await?;
-
-        sqlx::query("UPDATE xp SET xp = $1, rank = $2 WHERE uid = $3 AND guild_id = $4")
+        let mut transaction = self.pool.begin().await?;
+        
+        // Define the SQL UPDATE query with placeholders
+        let query = "UPDATE xp SET xp = $1, rank = $2 WHERE uid = $3 AND guild_id = $4";
+        
+        // Execute the SQL query with bound parameters
+        sqlx::query(query)
             .bind(xp)
             .bind(rank)
             .bind(uid)
             .bind(guild_id)
-            .execute(&mut *trans)
+            .execute(&mut *transaction)
             .await?;
-
-        trans.commit().await?;
+        
+        // Commit the transaction
+        transaction.commit().await?;
+        
         Ok(())
     }
-
+    
     pub async fn read(&self, uid: i64, guild_id: i64) -> Result<Vec<Xp>, Error> {
         let mut xp_record = Vec::new();
 
-        let rows = sqlx::query("SELECT uid, guild_id, xp FROM xp WHERE uid = $1 AND guild_id = $2")
+        let rows = sqlx::query("SELECT * FROM xp WHERE uid = $1 AND guild_id = $2")
             .bind(uid)
             .bind(guild_id)
             .fetch_all(&self.pool)

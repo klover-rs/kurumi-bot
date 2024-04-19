@@ -149,9 +149,8 @@ async fn event_handler(
                 new_message.author.name, new_message.content
             );
             handler::message_logging::handle_messages(new_message, _framework)
-                .await
-                .unwrap();
-            handler::xp_handler::handle_xp(new_message).await.unwrap();
+                .await?;
+            handler::xp_handler::handle_xp(new_message).await?;
             handler::messages_reactions::message_reactions(new_message, &ctx).await?;
         }
         serenity::FullEvent::MessageDelete {
@@ -165,8 +164,7 @@ async fn event_handler(
                 guild_id.unwrap()
             );
             handler::message_logging::deleted_messages_handler(channel_id, deleted_message_id, &ctx)
-                .await
-                .expect("Failed to delete message\nheheh\n");
+                .await?;
         }
         serenity::FullEvent::MessageUpdate {
             old_if_available: _,
@@ -183,8 +181,7 @@ async fn event_handler(
             match edited_msg {
                 Some(content) => {
                     handler::message_logging::edited_messages_handler(&event.channel_id,&event.id, &content, ctx)
-                        .await
-                        .unwrap();
+                        .await?
                 }
                 None => {
                     println!("edited content is None\n--------------------------------");
