@@ -1,7 +1,7 @@
 use crate::PrintError;
 use crate::{Context, Error};
 use std::io::Cursor;
-
+use crate::commands::user::avatar::{grayscale::apply_grayscale, invert::apply_invert, gpu_init::{ADAPTER, DEVICE_QUEUE, INSTANCE}};
 
 use image::{GenericImageView, DynamicImage};
 
@@ -95,9 +95,14 @@ pub async fn avatar(
 
 async fn use_filters(ctx: Context<'_>, bytes: Vec<u8>, image_format: Option<ImageFormat>, grayscale: Option<bool>, invert: Option<bool>, sepia_tone: Option<bool>, blur: Option<u8>) -> Result<(), Error> {
 
+    let instance = &INSTANCE;
+    let adapter = &ADAPTER;
+    let device = &DEVICE_QUEUE.0;
+    let queue = &DEVICE_QUEUE.1;
+
 
     let mut img = match image::load_from_memory(&bytes) {
-        Ok(img) => img,
+        Ok(img) => img.to_rgba8(),
         Err(err) => {
             ctx.send(
                 CreateReply::default().embed(
@@ -112,9 +117,40 @@ async fn use_filters(ctx: Context<'_>, bytes: Vec<u8>, image_format: Option<Imag
         }
     };
 
+    let (width, height) = img.dimensions();
+
+    let texture_size = wgpu::Extent3d {
+        width,
+        height,
+        depth_or_array_layers: 1,
+    };
+
+    let input_texture = device.create_texture(&wgpu::TextureDescriptor { 
+        label: Some("input texture"),
+        size: texture_size,
+        mip_level_count: 1,
+        sample_count: 1,
+        dimension: wgpu::TextureDimension::D2,
+        format: wgpu::TextureFormat::Rgba8Unorm,
+        usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+    });
+
+    let output_texture = device.create_texture(&wgpu::TextureDescriptor {
+        label: Some("output texture"),
+        size: texture_size,
+        mip_level_count: 1,
+        sample_count: 1,
+        dimension: wgpu::TextureDimension::D2,
+        format: wgpu::TextureFormat::Rgba8Unorm,
+        usage: wgpu::TextureUsages::COPY_SRC | wgpu::TextureUsages::STORAGE_BINDING,
+    });
+
+    let mut used_encoder = String::from("default");
+
     match grayscale {
         Some(true) => {
-            apply_grayscale(&mut img);     
+            apply_grayscale(&mut img, width, height, &input_texture, &output_texture, &texture_size, &device, &queue)?;     
+            used_encoder.push_str("gpu acceleration (unoptimized)");
         }
         _ => {
 
@@ -123,25 +159,14 @@ async fn use_filters(ctx: Context<'_>, bytes: Vec<u8>, image_format: Option<Imag
 
     match invert {
         Some(true) => {
-            apply_inverted(&mut img);
+            apply_invert(&mut img, width, height, &input_texture, &output_texture, &texture_size, &device, &queue)?;
+            used_encoder.push_str("gpu acceleration (unoptimized)");
         }
         _ => {
         }
     }
 
-    match sepia_tone {
-        Some(true) => {
-            apply_sepia(&mut img);
-        }
-        _ => {}
-    }
-
-    match blur {
-        Some(amount) => {
-            apply_blur(&mut img, amount as f32);
-        }
-        _ => {}
-    }
+    
     
     let image_format_str = match image_format {
         Some(format) => match format {
@@ -169,11 +194,11 @@ async fn use_filters(ctx: Context<'_>, bytes: Vec<u8>, image_format: Option<Imag
     Ok(())
 }
 
-fn apply_grayscale(img: &mut DynamicImage) {
+/*fn apply_grayscale(img: &mut DynamicImage) {
     *img = img.grayscale();
-}
+}*/
 
-fn apply_inverted(img: &mut DynamicImage) {
+/*fn apply_inverted(img: &mut DynamicImage) {
     let (width, height) = img.dimensions();
     let mut inverted_img = image::ImageBuffer::new(width, height);
 
@@ -187,7 +212,7 @@ fn apply_inverted(img: &mut DynamicImage) {
     }
 
     *img = DynamicImage::ImageRgb8(inverted_img);
-}
+}*/
 
 fn apply_sepia(img: &mut DynamicImage) {
     let mut sepia_tone_img = img.to_rgb8();
