@@ -188,6 +188,15 @@ async fn event_handler(
                 }
             }
         }
+        serenity::FullEvent::GuildCreate { guild, is_new } => {
+            println!("new guild: {}\nis_new: {:?}\n--------------------------------", guild.name, is_new);
+            handler::guilds::guild_join(&guild.id, is_new.unwrap()).await?;
+            
+        }
+        serenity::FullEvent::GuildDelete { incomplete, full } => {
+            println!("deleted guild: {:?}\n--------------------------------", incomplete);
+            handler::guilds::guild_remove(&incomplete.id).await?;
+        }
         serenity::FullEvent::GuildMemberAddition { new_member } => {
             println!("new member: {}\n--------------------------------", new_member.user.name);
             handler::member_join::member_join(new_member, ctx).await?;
