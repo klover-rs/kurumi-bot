@@ -29,8 +29,8 @@ impl Database {
 
     pub async fn create_table(&self) -> Result<(), Error> {
         sqlx::query("CREATE TABLE IF NOT EXISTS xp (
-            uid BIGINT PRIMARY KEY,
-            guild_id BIGINT,
+            guild_id BIGINT PRIMARY KEY,
+            uid BIGINT,
             xp BIGINT,
             rank BIGINT DEFAULT 0
         )")
@@ -42,9 +42,9 @@ impl Database {
     pub async fn insert(&self, uid: i64, guild_id: i64, xp: i64) -> Result<(), Error> {
         let mut trans = self.pool.begin().await?;
 
-        sqlx::query("INSERT INTO xp (uid, guild_id, xp) VALUES ($1, $2, $3)")
-            .bind(uid)
+        sqlx::query("INSERT INTO xp (guild_id, uid, xp) VALUES ($1, $2, $3)")
             .bind(guild_id)
+            .bind(uid)
             .bind(xp)
             .execute(&mut *trans)
             .await?;
@@ -58,14 +58,14 @@ impl Database {
         let mut transaction = self.pool.begin().await?;
         
         // Define the SQL UPDATE query with placeholders
-        let query = "UPDATE xp SET xp = $1, rank = $2 WHERE uid = $3 AND guild_id = $4";
+        let query = "UPDATE xp SET xp = $1, rank = $2 WHERE guild_id = $3 AND uid = $4";
         
         // Execute the SQL query with bound parameters
         sqlx::query(query)
             .bind(xp)
             .bind(rank)
-            .bind(uid)
             .bind(guild_id)
+            .bind(uid)
             .execute(&mut *transaction)
             .await?;
         
@@ -78,9 +78,9 @@ impl Database {
     pub async fn read(&self, uid: i64, guild_id: i64) -> Result<Vec<Xp>, Error> {
         let mut xp_record = Vec::new();
 
-        let rows = sqlx::query("SELECT * FROM xp WHERE uid = $1 AND guild_id = $2")
-            .bind(uid)
+        let rows = sqlx::query("SELECT * FROM xp WHERE guild_id = $1 AND uid = $2")
             .bind(guild_id)
+            .bind(uid)
             .fetch_all(&self.pool)
             .await?;
 
