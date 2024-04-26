@@ -24,7 +24,6 @@ impl Database {
         let url = url.as_str();
         let pool = sqlx::postgres::PgPool::connect(url).await?;
         Ok(Self { pool })
-        /* postgresql://postgres:7522@localhost:5432/kurumi_shit"  */
     }
 
     pub async fn create_table(&self) -> Result<(), Error> {
