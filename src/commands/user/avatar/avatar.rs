@@ -1,9 +1,8 @@
 use crate::PrintError;
 use crate::{Context, Error};
 use std::io::Cursor;
-use crate::commands::user::avatar::{grayscale::apply_grayscale, invert::apply_invert, sepia::apply_sepia, gpu_init::{ADAPTER, DEVICE_QUEUE, INSTANCE}};
+use crate::commands::user::avatar::{grayscale::apply_grayscale, invert::apply_invert, sepia::apply_sepia, gpu_init::DEVICE_QUEUE};
 
-use image::{GenericImageView, DynamicImage};
 
 use reqwest::Client;
 use poise::serenity_prelude::{self as serenity, CreateAttachment};
@@ -30,7 +29,6 @@ pub async fn avatar(
     #[description = "do you want to apply gray scale?"] grayscale: Option<bool>,
     #[description = "do you want to invert the images colours?"] invert: Option<bool>, 
     #[description = "do you want to apply a sepia tone to your image?"] sepia_tone: Option<bool>,
-    #[description = "do you want to apply a blur effect to your image?"] blur: Option<u8>,
 ) -> Result<(), Error> {
 
     match user {
@@ -47,10 +45,10 @@ pub async fn avatar(
                     let bytes = download_avatar(ctx, &url).await?;
                     match format {
                         Some(format) => {
-                            use_filters(ctx, bytes, Some(format), grayscale, invert, sepia_tone, blur).await?;
+                            use_filters(ctx, bytes, Some(format), grayscale, invert, sepia_tone).await?;
                         }
                         None => {
-                            use_filters(ctx, bytes, None, grayscale, invert, sepia_tone, blur).await?;
+                            use_filters(ctx, bytes, None, grayscale, invert, sepia_tone).await?;
                         }
                     }
                 }
@@ -75,10 +73,10 @@ pub async fn avatar(
                     let bytes = download_avatar(ctx, &url).await?;
                     match format {
                         Some(format) => {
-                            use_filters(ctx, bytes, Some(format), grayscale, invert, sepia_tone, blur).await?;
+                            use_filters(ctx, bytes, Some(format), grayscale, invert, sepia_tone).await?;
                         }
                         None => {
-                            use_filters(ctx, bytes, None, grayscale, invert, sepia_tone, blur).await?;
+                            use_filters(ctx, bytes, None, grayscale, invert, sepia_tone).await?;
                         }
                     }
                     
@@ -93,7 +91,7 @@ pub async fn avatar(
     Ok(())
 }
 
-async fn use_filters(ctx: Context<'_>, bytes: Vec<u8>, image_format: Option<ImageFormat>, grayscale: Option<bool>, invert: Option<bool>, sepia_tone: Option<bool>, blur: Option<u8>) -> Result<(), Error> {
+async fn use_filters(ctx: Context<'_>, bytes: Vec<u8>, image_format: Option<ImageFormat>, grayscale: Option<bool>, invert: Option<bool>, sepia_tone: Option<bool>) -> Result<(), Error> {
 
     let start = std::time::Instant::now();
 
