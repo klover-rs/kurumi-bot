@@ -7,6 +7,7 @@ pub struct Database {
     pool: PgPool,
 }
 
+#[derive(Debug)]
 pub struct Xp {
     pub uid: i64,
     pub guild_id: i64,
@@ -57,10 +58,8 @@ impl Database {
     pub async fn update(&self, uid: i64, guild_id: i64, xp: i64, rank: i64) -> Result<(), Error> {
         let mut transaction = self.pool.begin().await?;
         
-        // Define the SQL UPDATE query with placeholders
         let query = "UPDATE xp SET xp = $1, rank = $2 WHERE guild_id = $3 AND uid = $4";
         
-        // Execute the SQL query with bound parameters
         sqlx::query(query)
             .bind(xp)
             .bind(rank)
@@ -69,7 +68,6 @@ impl Database {
             .execute(&mut *transaction)
             .await?;
         
-        // Commit the transaction
         transaction.commit().await?;
         
         Ok(())
