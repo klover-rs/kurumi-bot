@@ -48,76 +48,19 @@ impl Database {
     ) -> Result<(), Error> {
         let mut trans = self.pool.begin().await?;
 
-        
+        let log_channel = log_channel.unwrap_or(0);
+        let mod_log_channel = mod_log_channel.unwrap_or(0);
+        let welcome_channel = welcome_channel.unwrap_or(0);
 
-        match (log_channel, mod_log_channel, welcome_channel) {
-            (Some(log_channel), Some(mod_log_channel), Some(welcome_channel)) => {
-                sqlx::query("INSERT INTO configuration (guild_id, log_channel, mod_log_channel, welcome_channel) VALUES ($1, $2, $3, $4)")
-                    .bind(guild_id)
-                    .bind(log_channel)
-                    .bind(mod_log_channel)
-                    .bind(welcome_channel)
-                    .execute(&mut *trans)
-                    .await?;
-                trans.commit().await?;
-            }
-            (Some(log_channel), None, Some(welcome_channel)) => {
-                sqlx::query("INSERT INTO configuration (guild_id, log_channel, welcome_channel) VALUES ($1, $2, $3)")
-                    .bind(guild_id)
-                    .bind(log_channel)
-                    .bind(welcome_channel)
-                    .execute(&mut *trans)
-                    .await?;
-                trans.commit().await?;
-            }
-            (None, Some(mod_log_channel), Some(welcome_channel)) => {
-                sqlx::query("INSERT INTO configuration (guild_id, mod_log_channel, welcome_channel) VALUES ($1, $2, $3)")
-                    .bind(guild_id)
-                    .bind(mod_log_channel)
-                    .bind(welcome_channel)
-                    .execute(&mut *trans)
-                    .await?;
-                trans.commit().await?;
-            }
-            (None, None, Some(welcome_channel)) => {
-                sqlx::query("INSERT INTO configuration (guild_id, welcome_channel) VALUES ($1, $2)")
-                    .bind(guild_id)
-                    .bind(welcome_channel)
-                    .execute(&mut *trans)
-                    .await?;
-                trans.commit().await?;
-            }
-            (Some(log_channel), Some(mod_log_channel), None) => {
-                sqlx::query("INSERT INTO configuration (guild_id, log_channel, mod_log_channel) VALUES ($1, $2, $3)")
-                    .bind(guild_id)
-                    .bind(log_channel)
-                    .bind(mod_log_channel)
-                    .execute(&mut *trans)
-                    .await?;
-                trans.commit().await?;
-            }
-            (Some(log_channel), None, None) => {
-                sqlx::query("INSERT INTO configuration (guild_id, log_channel) VALUES ($1, $2)")
-                    .bind(guild_id)
-                    .bind(log_channel)
-                    .execute(&mut *trans)
-                    .await?;
+        sqlx::query("INSERT INTO configuration (guild_id, log_channel, mod_log_channel, welcome_channel) VALUES ($1, $2, $3, $4)")
+            .bind(guild_id)
+            .bind(log_channel)
+            .bind(mod_log_channel)
+            .bind(welcome_channel)
+            .execute(&mut *trans)
+            .await?;
 
-                trans.commit().await?;
-            }
-            (None, Some(mod_log_channel), None) => {
-                sqlx::query("INSERT INTO configuration (guild_id, mod_log_channel) VALUES ($1, $2)")
-                    .bind(guild_id)
-                    .bind(mod_log_channel)
-                    .execute(&mut *trans)
-                    .await?;
-
-                trans.commit().await?;
-            }
-            (None, None, None) => {
-                return Err(Box::new(PrintError("No log_channel or mod_log_channel provided".to_string())));
-            }
-        }
+        trans.commit().await?;
 
         Ok(())
     }
@@ -131,69 +74,20 @@ impl Database {
     ) -> Result<(), Error> {
         let mut trans = self.pool.begin().await?;
 
-        println!("INSERTING:\n{:?}\n{:?}", log_channel, mod_log_channel);
+        let log_channel = log_channel.unwrap_or(0);
+        let mod_log_channel = mod_log_channel.unwrap_or(0);
+        let welcome_channel = welcome_channel.unwrap_or(0);
 
-        match (log_channel, mod_log_channel, welcome_channel) {
-            (Some(log_channel), Some(mod_log_channel), Some(welcome_channel)) => {
-                sqlx::query("UPDATE configuration SET log_channel = $1, mod_log_channel = $2, welcome_channel = $3 WHERE guild_id = $4")
-                    .bind(log_channel)
-                    .bind(mod_log_channel)
-                    .bind(welcome_channel)
-                    .bind(guild_id)
-                    .execute(&mut *trans)
-                    .await?;
-            }
-            (Some(log_channel), None, Some(welcome_channel)) => {
-                sqlx::query("UPDATE configuration SET log_channel = $1, welcome_channel = $2 WHERE guild_id = $3")
-                    .bind(log_channel)
-                    .bind(welcome_channel)
-                    .bind(guild_id)
-                    .execute(&mut *trans)
-                    .await?;
-            }
-            (None, Some(mod_log_channel), Some(welcome_channel)) => {
-                sqlx::query("UPDATE configuration SET mod_log_channel = $1, welcome_channel = $2 WHERE guild_id = $3")
-                    .bind(mod_log_channel)
-                    .bind(welcome_channel)
-                    .bind(guild_id)
-                    .execute(&mut *trans)
-                    .await?;
-            }
-            (None, None, Some(welcome_channel)) => {
-                sqlx::query("UPDATE configuration SET welcome_channel = $1 WHERE guild_id = $2")
-                    .bind(welcome_channel)
-                    .bind(guild_id)
-                    .execute(&mut *trans)
-                    .await?;
-            }
-            (Some(log_channel), Some(mod_log_channel), None) => {
-                sqlx::query("UPDATE configuration SET log_channel = $1, mod_log_channel = $2 WHERE guild_id = $3")
-                    .bind(log_channel)
-                    .bind(mod_log_channel)
-                    .bind(guild_id)
-                    .execute(&mut *trans)
-                    .await?;
-            }
-            (Some(log_channel), None, None) => {
-                sqlx::query("UPDATE configuration SET log_channel = $1 WHERE guild_id = $2")
-                    .bind(log_channel)
-                    .bind(guild_id)
-                    .execute(&mut *trans)
-                    .await?;
-            }
-            (None, Some(mod_log_channel), None) => {
-                sqlx::query("UPDATE configuration SET mod_log_channel = $1 WHERE guild_id = $2")
-                    .bind(mod_log_channel)
-                    .bind(guild_id)
-                    .execute(&mut *trans)
-                    .await?;
-            }
-            (None, None, None) => {
-                return Err(Box::new(PrintError("No log_channel or mod_log_channel provided".to_string())));
-            }
-        }
+        sqlx::query("UPDATE configuration SET log_channel = $1, mod_log_channel = $2, welcome_channel = $3 WHERE guild_id = $4")
+            .bind(log_channel)
+            .bind(mod_log_channel)
+            .bind(welcome_channel)
+            .bind(guild_id)
+            .execute(&mut *trans)
+            .await?;
 
         trans.commit().await?;
+
         Ok(())
     }
 
@@ -220,6 +114,7 @@ impl Database {
         trans.commit().await?;
         Ok(())
     }
+
 }
 
 fn parse_configuration_record(row: PgRow) -> Result<Configuration, Error> {
@@ -230,3 +125,4 @@ fn parse_configuration_record(row: PgRow) -> Result<Configuration, Error> {
         welcome_channel: row.try_get(3)?,
     })
 }
+
