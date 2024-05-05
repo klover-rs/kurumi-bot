@@ -21,7 +21,13 @@ use commands::{
     },
     rps::*,
     timer::*,
-    user::{avatar::avatar, neko_commands::neko, snipe::snipe, math::math::math},
+    user::{
+        avatar::avatar,
+        neko_commands::neko,
+        snipe::snipe,
+        math::math::math,
+        rank::get_rank,
+    },
     utilities::configure::configure,
     utils::*,
 };
@@ -110,6 +116,7 @@ async fn main() {
                 ping(),
                 math(),
                 snipe(),
+                get_rank(),
             ],
             on_error: |error| Box::pin(on_error(error)),
             event_handler: |ctx, event, framework, data| {
@@ -150,7 +157,7 @@ async fn event_handler(
             );
             handler::message_logging::handle_messages(new_message, _framework)
                 .await?;
-            handler::xp_handler::handle_xp(new_message).await?;
+            handler::xp_handler::handle_xp(new_message, ctx).await?;
             handler::messages_reactions::message_reactions(new_message, &ctx).await?;
         }
         serenity::FullEvent::MessageDelete {
@@ -187,15 +194,6 @@ async fn event_handler(
                     println!("edited content is None\n--------------------------------");
                 }
             }
-        }
-        serenity::FullEvent::GuildCreate { guild, is_new } => {
-            println!("new guild: {}\nis_new: {:?}\n--------------------------------", guild.name, is_new);
-            handler::guilds::guild_join(&guild.id, is_new.unwrap()).await?;
-            
-        }
-        serenity::FullEvent::GuildDelete { incomplete, full } => {
-            println!("deleted guild: {:?}\n--------------------------------", incomplete);
-            handler::guilds::guild_remove(&incomplete.id).await?;
         }
         serenity::FullEvent::GuildMemberAddition { new_member } => {
             println!("new member: {}\n--------------------------------", new_member.user.name);
