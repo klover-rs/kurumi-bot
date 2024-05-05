@@ -1,4 +1,4 @@
-use crate::{secrets::get_secret, PrintError};
+use crate::secrets::get_secret;
 use serde::{Deserialize, Serialize};
 use crate::Error;
 use sqlx::{postgres::PgRow, PgPool, Row};
