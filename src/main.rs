@@ -5,7 +5,6 @@ mod db;
 mod download_docs;
 mod events;
 mod handler;
-mod rich_presence;
 mod secrets;
 mod utils;
 
