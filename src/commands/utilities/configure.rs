@@ -53,6 +53,11 @@ pub async fn upload(
 
     let filename_parts = file.filename.split(".").collect::<Vec<&str>>();
     let extension = *filename_parts.last().unwrap();
+
+    let channels_to_check = vec!["log_channel_id", "mod_log_channel_id", "welcome_channel_id", "xp_channel_id"];
+    let mut valid_channels: Vec<Option<String>> = Vec::new();
+    let mut errors: Vec<String> = Vec::new();
+
     match extension {
         "json" => {
             println!("file format is json");
@@ -73,11 +78,6 @@ pub async fn upload(
                     return Ok(());
                 }
             };
-
-
-            let channels_to_check = vec!["log_channel_id", "mod_log_channel_id", "welcome_channel_id"];
-            let mut valid_channels: Vec<Option<String>> = Vec::new();
-            let mut errors: Vec<String> = Vec::new();
 
             for channel in channels_to_check {
                 let channel_id = match pharse_channel_id_serde(&phrased, channel) {
@@ -122,38 +122,6 @@ pub async fn upload(
                     }
                 }
             }
-
-            for e in &errors {
-                println!("error: {}",  e);
-            }
-
-            if errors.len() > 0 {
-                ctx.send(
-                    CreateReply::default().embed(CreateEmbed::default()
-                        .title("Error")
-                        .description(format!("An error occurred while processing the json file\n\n{}", errors.join("\n--------------\n")))
-                    ).ephemeral(true)
-                ).await?;
-            
-            }
-
-            if valid_channels.len() > 0 {
-
-                let log_channel = match &valid_channels[0] {
-                    Some(v) => Some(v.parse::<i64>().unwrap()),
-                    None => None
-                };
-                let mod_log_channel = match &valid_channels[1] {
-                    Some(v) => Some(v.parse::<i64>().unwrap()),
-                    None => None
-                };
-                let welcome_channel = match &valid_channels[2] {
-                    Some(v) => Some(v.parse::<i64>().unwrap()),
-                    None => None
-                };
-                insert_config(ctx, guild_id.to_string().parse().unwrap(), log_channel, mod_log_channel, welcome_channel).await?;
-
-            }
             
         }
         "toml" => {
@@ -174,10 +142,6 @@ pub async fn upload(
                     return Ok(());
                 }
             };
-
-            let channels_to_check = vec!["log_channel_id", "mod_log_channel_id", "welcome_channel_id"];
-            let mut valid_channels: Vec<Option<String>> = Vec::new();
-            let mut errors: Vec<String> = Vec::new();
 
             for channel in channels_to_check {
                 let channel_id = match phrase_channel_id_toml(&toml_data, channel) {
@@ -222,37 +186,6 @@ pub async fn upload(
                 }
             }
 
-            for e in &errors {
-                println!("error: {}",  e);
-            }
-
-            if errors.len() > 0 {
-                ctx.send(
-                    CreateReply::default().embed(CreateEmbed::default()
-                        .title("Error")
-                        .description(format!("An error occurred while processing the toml file\n\n{}", errors.join("\n--------------\n")))
-                    ).ephemeral(true)
-                ).await?;
-            
-            }
-
-            if valid_channels.len() > 0 {
-
-                let log_channel = match &valid_channels[0] {
-                    Some(v) => Some(v.parse::<i64>().unwrap()),
-                    None => None
-                };
-                let mod_log_channel = match &valid_channels[1] {
-                    Some(v) => Some(v.parse::<i64>().unwrap()),
-                    None => None
-                };
-                let welcome_channel = match &valid_channels[2] {
-                    Some(v) => Some(v.parse::<i64>().unwrap()),
-                    None => None
-                };
-                insert_config(ctx, guild_id.to_string().parse().unwrap(), log_channel, mod_log_channel, welcome_channel).await?;
-
-            }
         }
         _ => {
             println!("Unsupported file format");
@@ -262,6 +195,38 @@ pub async fn upload(
                     .description("Only .json and .toml files are supported.")
             )).await?;
         }
+    }
+
+    if errors.len() > 0 {
+        ctx.send(
+            CreateReply::default().embed(CreateEmbed::default()
+                .title("Error")
+                .description(format!("An error occurred while processing the toml file\n\n{}", errors.join("\n--------------\n")))
+            ).ephemeral(true)
+        ).await?;
+    
+    }
+
+    if valid_channels.len() > 0 {
+
+        let log_channel = match &valid_channels[0] {
+            Some(v) => Some(v.parse::<i64>().unwrap()),
+            None => None
+        };
+        let mod_log_channel = match &valid_channels[1] {
+            Some(v) => Some(v.parse::<i64>().unwrap()),
+            None => None
+        };
+        let welcome_channel = match &valid_channels[2] {
+            Some(v) => Some(v.parse::<i64>().unwrap()),
+            None => None
+        };
+        let xp_channel = match &valid_channels[3] {
+            Some(v) => Some(v.parse::<i64>().unwrap()),
+            None => None
+        };
+        insert_config(ctx, guild_id.to_string().parse().unwrap(), log_channel, mod_log_channel, welcome_channel, xp_channel).await?;
+
     }
 
     Ok(())
@@ -316,11 +281,11 @@ fn phrase_channel_id_toml(value: &toml::Value, key: &str) -> Result<Option<Chann
 }
 
 
-async fn insert_config(ctx: Context<'_>, guild_id: i64, log_channel: Option<i64>, mod_log_channel: Option<i64>, welcome_channel: Option<i64>) -> Result<(), Error> {
+async fn insert_config(ctx: Context<'_>, guild_id: i64, log_channel: Option<i64>, mod_log_channel: Option<i64>, welcome_channel: Option<i64>, xp_channel: Option<i64>) -> Result<(), Error> {
 
     let db = Database::new().await?;
     db.create_table().await?;
-    match db.insert(guild_id, log_channel, mod_log_channel, welcome_channel).await {
+    match db.insert(guild_id, log_channel, mod_log_channel, welcome_channel, xp_channel).await {
         Ok(_) => {
             ctx.send(
                 CreateReply::default().embed(CreateEmbed::default()
@@ -359,7 +324,7 @@ async fn insert_config(ctx: Context<'_>, guild_id: i64, log_channel: Option<i64>
                     match mci.data.custom_id.as_str() {
                         "yes" => {
                             println!("yes");
-                            match db.update(guild_id, log_channel, mod_log_channel, welcome_channel).await {
+                            match db.update(guild_id, log_channel, mod_log_channel, welcome_channel, xp_channel).await {
                                 Ok(_) => {
                                     msg.edit(ctx, CreateReply::default().content(
                                         "updated configuration successfully"
@@ -398,6 +363,7 @@ pub async fn set(
     #[description = "log channel"] log_channel: Option<serenity::ChannelId>,
     #[description = "mod log channel"] mod_log_channel: Option<serenity::ChannelId>,
     #[description = "welcome channel"] welcome_channel: Option<serenity::ChannelId>,
+    #[description = "xp channel"] xp_channel: Option<serenity::ChannelId>,
 ) -> Result<(), Error> {
 
     println!("{:?}", log_channel);
@@ -427,8 +393,12 @@ pub async fn set(
         Some(channel) => Some(channel.to_string().parse::<i64>().unwrap()),
         None => None
     };
+    let xp_channel = match xp_channel {
+        Some(channel) => Some(channel.to_string().parse::<i64>().unwrap()),
+        None => None
+    };
 
-    insert_config(ctx, guild_id, log_channel, mod_log_channel, welcome_channel).await?;
+    insert_config(ctx, guild_id, log_channel, mod_log_channel, welcome_channel, xp_channel).await?;
 
     Ok(())
 }

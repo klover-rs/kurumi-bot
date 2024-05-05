@@ -12,6 +12,7 @@ pub struct Configuration {
     pub log_channel: i64,
     pub mod_log_channel: i64,
     pub welcome_channel: i64,
+    pub xp_channel: i64,
 }
 
 impl Database {
@@ -31,7 +32,8 @@ impl Database {
             guild_id BIGINT PRIMARY KEY,
             log_channel BIGINT DEFAULT 0,
             mod_log_channel BIGINT DEFAULT 0,
-            welcome_channel BIGINT DEFAULT 0
+            welcome_channel BIGINT DEFAULT 0,
+            xp_channel BIGINT DEFAULT 0
         )")
         .execute(&self.pool)
         .await?;
@@ -45,18 +47,21 @@ impl Database {
         log_channel: Option<i64>,
         mod_log_channel: Option<i64>,
         welcome_channel: Option<i64>,
+        xp_channel: Option<i64>,
     ) -> Result<(), Error> {
         let mut trans = self.pool.begin().await?;
 
         let log_channel = log_channel.unwrap_or(0);
         let mod_log_channel = mod_log_channel.unwrap_or(0);
         let welcome_channel = welcome_channel.unwrap_or(0);
+        let xp_channel = xp_channel.unwrap_or(0);
 
-        sqlx::query("INSERT INTO configuration (guild_id, log_channel, mod_log_channel, welcome_channel) VALUES ($1, $2, $3, $4)")
+        sqlx::query("INSERT INTO configuration (guild_id, log_channel, mod_log_channel, welcome_channel, xp_channel) VALUES ($1, $2, $3, $4, $5)")
             .bind(guild_id)
             .bind(log_channel)
             .bind(mod_log_channel)
             .bind(welcome_channel)
+            .bind(xp_channel)
             .execute(&mut *trans)
             .await?;
 
@@ -71,17 +76,20 @@ impl Database {
         log_channel: Option<i64>,
         mod_log_channel: Option<i64>,
         welcome_channel: Option<i64>,
+        xp_channel: Option<i64>,
     ) -> Result<(), Error> {
         let mut trans = self.pool.begin().await?;
 
         let log_channel = log_channel.unwrap_or(0);
         let mod_log_channel = mod_log_channel.unwrap_or(0);
         let welcome_channel = welcome_channel.unwrap_or(0);
+        let xp_channel = xp_channel.unwrap_or(0);
 
-        sqlx::query("UPDATE configuration SET log_channel = $1, mod_log_channel = $2, welcome_channel = $3 WHERE guild_id = $4")
+        sqlx::query("UPDATE configuration SET log_channel = $1, mod_log_channel = $2, welcome_channel = $3, xp_channel = $4 WHERE guild_id = $5")
             .bind(log_channel)
             .bind(mod_log_channel)
             .bind(welcome_channel)
+            .bind(xp_channel)   
             .bind(guild_id)
             .execute(&mut *trans)
             .await?;
@@ -123,6 +131,7 @@ fn parse_configuration_record(row: PgRow) -> Result<Configuration, Error> {
         log_channel: row.try_get(1)?,
         mod_log_channel: row.try_get(2)?,
         welcome_channel: row.try_get(3)?,
+        xp_channel: row.try_get(4)?,
     })
 }
 
