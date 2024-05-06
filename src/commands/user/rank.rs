@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use crate::{Context, Error};
 
 use image::error;
@@ -48,6 +50,8 @@ pub async fn set_level_roles(
 
     let mut valid_roles: Vec<(i32, RoleId)> = Vec::new();
     let mut errors: Vec<String> = Vec::new();
+    let mut processed_ordering_ids: HashSet<i32> = HashSet::new();
+    let mut processed_role_ids: HashSet<i64> = HashSet::new();
 
     //TODO: implement a check which checks, if a ordering number or roleID is already in use
 
@@ -57,20 +61,34 @@ pub async fn set_level_roles(
             errors.push(format!("Invalid syntax at position {}: Expected 'ordering=role_id' format", index + 1));
             continue;
         }
+        
+        let ordering_number = parts[0].parse::<i32>();
+        let role_id = parts[1].parse::<i64>();
 
-        if let (Ok(ordering_number), Ok(role_id)) = (parts[0].parse::<i32>(), parts[1].parse::<i64>()) {
-            match guild_id.roles(ctx).await?.get(&RoleId::from(role_id as u64)) {
-                Some(role) => {
-                    valid_roles.push((ordering_number, role.id));
-                },
-                None => {
-                    errors.push(format!("Role with ID {} not found", role_id));
-                    continue;
-                }
-            };
-        } else {
+        if ordering_number.is_err() || role_id.is_err() {
             errors.push(format!("Invalid values at position {}: Both ordering and role ID must be numeric", index + 1));
+            continue;
         }
+
+        let role_id = role_id.unwrap();
+        let ordering_number = ordering_number.unwrap();
+
+        if !processed_ordering_ids.insert(ordering_number) {
+            errors.push(format!("Duplicated index key {} at position {}", role_id, index + 1));
+            continue;
+        } else if !processed_role_ids.insert(role_id) {
+            errors.push(format!("Duplicated role ID {} at position {}", role_id, index + 1));
+            continue;
+        }
+
+        match guild_id.roles(ctx).await?.get(&RoleId::from(role_id as u64)) {
+            Some(role) => {
+                valid_roles.push((ordering_number, role.id));
+            },
+            None => {
+                errors.push(format!("Role with ID {} not found", role_id));
+            }
+        };
 
     }
 
@@ -98,8 +116,6 @@ pub async fn set_level_roles(
             )).await?;
         }
     }
-
-
 
     Ok(())
 }
