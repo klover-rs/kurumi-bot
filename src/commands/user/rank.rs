@@ -49,6 +49,8 @@ pub async fn set_level_roles(
     let mut valid_roles: Vec<(i32, RoleId)> = Vec::new();
     let mut errors: Vec<String> = Vec::new();
 
+    //TODO: implement a check which checks, if a ordering number or roleID is already in use
+
     for (index, role) in roles.split(',').enumerate() {
         let parts: Vec<&str> = role.split('=').collect();
         if parts.len() != 2 {
@@ -96,6 +98,9 @@ pub async fn set_level_roles(
             )).await?;
         }
     }
+
+
+
     Ok(())
 }
 
