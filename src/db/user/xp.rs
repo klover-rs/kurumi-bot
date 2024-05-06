@@ -11,6 +11,7 @@ pub struct Xp {
     pub uid: i64,
     pub guild_id: i64,
     pub xp: i64,
+    pub xp_in_this_rank: i64,
     pub rank: i64,
 }
 
@@ -32,20 +33,22 @@ impl Database {
             guild_id BIGINT PRIMARY KEY,
             uid BIGINT,
             xp BIGINT,
-            rank BIGINT DEFAULT 0
+            rank BIGINT DEFAULT 0,
+            xp_in_this_rank BIGINT
         )")
         .execute(&self.pool)
         .await?;
         Ok(())
     }
 
-    pub async fn insert(&self, uid: i64, guild_id: i64, xp: i64) -> Result<(), Error> {
+    pub async fn insert(&self, uid: i64, guild_id: i64, xp: i64, xp_in_this_rank: i64) -> Result<(), Error> {
         let mut trans = self.pool.begin().await?;
 
-        sqlx::query("INSERT INTO xp (guild_id, uid, xp) VALUES ($1, $2, $3)")
+        sqlx::query("INSERT INTO xp (guild_id, uid, xp, xp_in_this_rank) VALUES ($1, $2, $3, $4)")
             .bind(guild_id)
             .bind(uid)
             .bind(xp)
+            .bind(xp_in_this_rank)
             .execute(&mut *trans)
             .await?;
 
@@ -54,13 +57,14 @@ impl Database {
         Ok(())
     }
 
-    pub async fn update(&self, uid: i64, guild_id: i64, xp: i64, rank: i64) -> Result<(), Error> {
+    pub async fn update(&self, uid: i64, guild_id: i64, xp: i64, xp_in_this_rank: i64, rank: i64) -> Result<(), Error> {
         let mut transaction = self.pool.begin().await?;
         
-        let query = "UPDATE xp SET xp = $1, rank = $2 WHERE guild_id = $3 AND uid = $4";
+        let query = "UPDATE xp SET xp = $1, xp_in_this_rank = $2, rank = $3 WHERE guild_id = $4 AND uid = $5";
         
         sqlx::query(query)
             .bind(xp)
+            .bind(xp_in_this_rank)
             .bind(rank)
             .bind(guild_id)
             .bind(uid)
@@ -94,6 +98,7 @@ fn parse_xp_record(row: PgRow) -> Result<Xp, Error> {
         uid: row.try_get(0)?,
         guild_id: row.try_get(1)?,
         xp: row.try_get(2)?,
+        xp_in_this_rank: row.try_get(4)?,
         rank: row.try_get(3)?,
     })
 }
