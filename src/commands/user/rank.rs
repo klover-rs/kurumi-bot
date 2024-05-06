@@ -1,6 +1,8 @@
 use crate::{Context, Error};
 
+use image::error;
 use poise::serenity_prelude::model::user;
+use poise::serenity_prelude::RoleId;
 use poise::CreateReply;
 
 use poise::serenity_prelude as serenity;
@@ -9,6 +11,93 @@ use serenity::User;
 use serenity::CreateEmbed;
 
 use crate::db::user::xp::Database;
+
+#[poise::command(
+    prefix_command,
+    slash_command,
+    subcommands("get_rank", "set_rank", "set_level_roles")
+)]
+pub async fn rank(ctx: Context<'_>) -> Result<(), Error> {
+
+    Ok(())
+}
+
+#[poise::command(
+    prefix_command, 
+    slash_command,
+)]
+pub async fn set_level_roles(
+    ctx: Context<'_>,
+    #[description = "assign level roles to specific ranks e.g. (5=role_id,10=role_id) without brackets"] roles: String,
+) -> Result<(), Error> {
+
+    let guild_id = match ctx.guild_id() {
+        Some(id) => id,
+        None => {
+            ctx.send(
+                CreateReply::default().embed(CreateEmbed::default()
+                    .title("Error")
+                    .description("this command can only be enforced in guilds.")
+                )
+            ).await?;
+            return Ok(());
+        }
+    };
+
+    let roles: String = roles.chars().filter(|&c| !c.is_whitespace()).collect();
+
+    let mut valid_roles: Vec<(i32, RoleId)> = Vec::new();
+    let mut errors: Vec<String> = Vec::new();
+
+    for (index, role) in roles.split(',').enumerate() {
+        let parts: Vec<&str> = role.split('=').collect();
+        if parts.len() != 2 {
+            errors.push(format!("Invalid syntax at position {}: Expected 'ordering=role_id' format", index + 1));
+            continue;
+        }
+
+        if let (Ok(ordering_number), Ok(role_id)) = (parts[0].parse::<i32>(), parts[1].parse::<i64>()) {
+            match guild_id.roles(ctx).await?.get(&RoleId::from(role_id as u64)) {
+                Some(role) => {
+                    valid_roles.push((ordering_number, role.id));
+                },
+                None => {
+                    errors.push(format!("Role with ID {} not found", role_id));
+                    continue;
+                }
+            };
+        } else {
+            errors.push(format!("Invalid values at position {}: Both ordering and role ID must be numeric", index + 1));
+        }
+
+    }
+
+    if errors.is_empty() {
+        println!("All roles validated successfully:");
+        ctx.send(CreateReply::default().embed(
+            CreateEmbed::default()
+                .title("Result")
+                .description(format!("All roles validated successfully: \n{:?}", &valid_roles))
+        )).await?;
+    } else {
+        println!("Errors encountered during validation:");
+        if valid_roles.is_empty() {
+            ctx.send(CreateReply::default().embed(
+                CreateEmbed::default()
+                    .title("Error")
+                    .description(format!("No valid roles found, encountered error: \n{}", &errors.join("\n---------\n")))
+            )).await?;
+            return Ok(());
+        } else {
+            ctx.send(CreateReply::default().embed(
+                CreateEmbed::default()
+                    .title("Result")
+                    .description(format!("The following roles have been validated:\n{:?}\n**Errors:**\n{}", &valid_roles, &errors.join("\n---------\n")))
+            )).await?;
+        }
+    }
+    Ok(())
+}
 
 #[poise::command(prefix_command, slash_command)]
 pub async fn set_rank(ctx: Context<'_>, user: User, rank: u16) -> Result<(), Error> {

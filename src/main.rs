@@ -25,7 +25,7 @@ use commands::{
         neko_commands::neko,
         snipe::snipe,
         math::math::math,
-        rank::{get_rank, set_rank},
+        rank::rank,
     },
     utilities::configure::configure,
     utils::*,
@@ -115,8 +115,7 @@ async fn main() {
                 ping(),
                 math(),
                 snipe(),
-                get_rank(),
-                set_rank(),
+                rank(),
             ],
             on_error: |error| Box::pin(on_error(error)),
             event_handler: |ctx, event, framework, data| {
