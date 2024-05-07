@@ -129,6 +129,15 @@ impl Database {
 
         Ok(xp_record)
     }
+
+    pub async fn read_level_roles(&self, guild_id: i64) -> Result<String, Error> {
+        let row = sqlx::query("SELECT lvl_roles FROM level_roles WHERE guild_id = $1")
+            .bind(guild_id)
+            .fetch_one(&self.pool)
+            .await?;
+
+        Ok(row.try_get(0)?)
+    }
 }
 
 fn parse_xp_record(row: PgRow) -> Result<Xp, Error> {
