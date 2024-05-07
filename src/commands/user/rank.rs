@@ -3,6 +3,7 @@ use std::str::FromStr;
 
 use crate::{Context, Error};
 
+use poise::serenity_prelude::CreateAttachment;
 use poise::serenity_prelude::GuildId;
 use poise::serenity_prelude::Member;
 use poise::serenity_prelude::RoleId;
@@ -82,7 +83,6 @@ pub async fn set_level_roles(
         println!("test");
     } 
 
-    //TODO: implement a check which checks, if a ordering number or roleID is already in use
     for (index, role) in roles.split(',').enumerate() {
         let parts: Vec<&str> = role.split('=').collect();
         if parts.len() != 2 {
@@ -185,6 +185,9 @@ async fn insert_level_roles(ctx: Context<'_>, guild_id: GuildId, lvl_roles: &str
                         serenity::CreateButton::new("no")
                             .style(serenity::ButtonStyle::Danger)
                             .label("No"),
+                        serenity::CreateButton::new("download_backup")
+                            .style(serenity::ButtonStyle::Primary)
+                            .label("Download Backup"),
                     ])
                 ];
                 let embed = CreateEmbed::default()
@@ -218,12 +221,17 @@ async fn insert_level_roles(ctx: Context<'_>, guild_id: GuildId, lvl_roles: &str
                         "no" => {
                             msg.edit(ctx, CreateReply::default().content("Operation cancelled").components(vec![])).await?;
                         },
+                        "download_backup" => {
+                            let backup = db.read_level_roles(guild_id.try_into()?).await?;
+                            msg.edit(ctx, CreateReply::default().attachment(CreateAttachment::bytes(backup.as_bytes(), "level_roles.txt")).components(vec![])).await?;
+                            println!("backup: {:?}", backup);
+                        }
                         _ => {}
                     }
                     mci.create_response(ctx, serenity::CreateInteractionResponse::Acknowledge).await?;
                 }
             }
-            Ok(()) // Return Ok(()) after handling the error condition
+            Ok(()) 
         }
     }
 }
