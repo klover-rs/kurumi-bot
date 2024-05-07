@@ -152,8 +152,9 @@ pub async fn set_level_roles(
     let mut valid_roles_str = String::new();
     for (ordering_number, role_id) in valid_roles {
         let role_id_str = role_id.to_string();
-        valid_roles_str.push_str(&format!("{}={}\n", ordering_number, role_id_str));
+        valid_roles_str.push_str(&format!("{}={},", ordering_number, role_id_str));
     }
+    valid_roles_str.pop();
 
     println!("valid roles: {}", &valid_roles_str);
 
