@@ -41,6 +41,16 @@ impl Database {
         Ok(())
     }
 
+    pub async fn create_table_level_roles(&self) -> Result<(), Error> {
+        sqlx::query("CREATE TABLE IF NOT EXISTS level_roles (
+            guild_id BIGINT PRIMARY KEY,
+            lvl_roles TEXT
+        )")
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
     pub async fn insert(&self, uid: i64, guild_id: i64, xp: i64, xp_in_this_rank: i64) -> Result<(), Error> {
         let mut trans = self.pool.begin().await?;
 
@@ -49,6 +59,20 @@ impl Database {
             .bind(uid)
             .bind(xp)
             .bind(xp_in_this_rank)
+            .execute(&mut *trans)
+            .await?;
+
+        trans.commit().await?;
+
+        Ok(())
+    }
+
+    pub async fn insert_level_roles(&self, guild_id: i64, level_roles: &str) -> Result<(), Error> {
+        let mut trans = self.pool.begin().await?;
+
+        sqlx::query("INSERT INTO level_roles (guild_id, lvl_roles) VALUES ($1, $2)")
+            .bind(guild_id)
+            .bind(level_roles)
             .execute(&mut *trans)
             .await?;
 
@@ -73,6 +97,20 @@ impl Database {
         
         transaction.commit().await?;
         
+        Ok(())
+    }
+
+    pub async fn update_level_roles(&self, guild_id: i64, level_roles: &str) -> Result<(), Error> {
+        let mut transaction = self.pool.begin().await?;
+
+        sqlx::query("UPDATE level_roles SET lvl_roles = $1 WHERE guild_id = $2")
+            .bind(level_roles)
+            .bind(guild_id)
+            .execute(&mut *transaction)
+            .await?;
+
+        transaction.commit().await?;
+
         Ok(())
     }
     
