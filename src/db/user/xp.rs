@@ -155,6 +155,16 @@ impl Database {
             
         Ok(xp_record)
     }
+
+    pub async fn clear_level_roles(&self, guild_id: i64) -> Result<(), Error> {
+        let mut trans = self.pool.begin().await?;
+        sqlx::query("DELETE FROM level_roles WHERE guild_id = $1")
+            .bind(guild_id)
+            .execute(&mut *trans)
+            .await?;
+        trans.commit().await?;
+        Ok(())
+    }
 }
 
 fn parse_xp_record(row: PgRow) -> Result<Xp, Error> {
