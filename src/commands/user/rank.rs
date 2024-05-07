@@ -1,10 +1,15 @@
 use std::collections::HashSet;
+use std::str::FromStr;
 
 use crate::{Context, Error};
 
-use image::error;
-use poise::serenity_prelude::model::user;
+use poise::serenity_prelude::GuildId;
+use poise::serenity_prelude::Member;
 use poise::serenity_prelude::RoleId;
+use poise::serenity_prelude::UserId;
+
+use crate::secrets::get_secret;
+
 use poise::CreateReply;
 
 use poise::serenity_prelude as serenity;
@@ -52,9 +57,32 @@ pub async fn set_level_roles(
     let mut errors: Vec<String> = Vec::new();
     let mut processed_ordering_ids: HashSet<i32> = HashSet::new();
     let mut processed_role_ids: HashSet<i64> = HashSet::new();
+    let bot_uid = UserId::from_str(get_secret("APP_ID").as_str()).unwrap();
+    let bot_roles = match get_member(&ctx, guild_id, bot_uid).await {
+        Some(member) => {
+            
+            match member.roles(ctx) {
+                Some(roles) => roles,
+                None => {
+                    ctx.send(CreateReply::default().embed(
+                        CreateEmbed::default()
+                            .title("Error")
+                            .description("The bot needs to have at least one role.")
+                    )).await?;
+                    return Ok(())
+                }
+            }
+        },
+        None => return Ok(()),
+    };
+
+    let highest_role = bot_roles.iter().max_by_key(|role| role.position).unwrap();
+    
+    if highest_role.position > 1 {
+        println!("test");
+    } 
 
     //TODO: implement a check which checks, if a ordering number or roleID is already in use
-
     for (index, role) in roles.split(',').enumerate() {
         let parts: Vec<&str> = role.split('=').collect();
         if parts.len() != 2 {
@@ -83,7 +111,11 @@ pub async fn set_level_roles(
 
         match guild_id.roles(ctx).await?.get(&RoleId::from(role_id as u64)) {
             Some(role) => {
-                valid_roles.push((ordering_number, role.id));
+                if highest_role.position < role.position {
+                    errors.push(format!("Role with ID {} is higher than the highest role of the bot", role_id));
+                } else {
+                    valid_roles.push((ordering_number, role.id));
+                }
             },
             None => {
                 errors.push(format!("Role with ID {} not found", role_id));
@@ -117,7 +149,90 @@ pub async fn set_level_roles(
         }
     }
 
+    let mut valid_roles_str = String::new();
+    for (ordering_number, role_id) in valid_roles {
+        let role_id_str = role_id.to_string();
+        valid_roles_str.push_str(&format!("{}={}\n", ordering_number, role_id_str));
+    }
+
+    println!("valid roles: {}", &valid_roles_str);
+
+    insert_level_roles(ctx, guild_id, &valid_roles_str).await?;
+
     Ok(())
+}
+
+async fn insert_level_roles(ctx: Context<'_>, guild_id: GuildId, lvl_roles: &str) -> Result<(), Error> {
+    let db = Database::new().await?;
+
+    db.create_table_level_roles().await?;
+    
+    match db.insert_level_roles(guild_id.try_into()?, lvl_roles).await {
+        Ok(_) => {
+            ctx.send(CreateReply::default().embed(CreateEmbed::default()
+                .title("Success")
+                .description("Level roles have been set successfully")
+            )).await?;
+            Ok(())
+        },
+        Err(e) => {
+            if e.to_string().contains("duplicate key value violates unique constraint") {
+                let components = vec![
+                    serenity::CreateActionRow::Buttons(vec![
+                        serenity::CreateButton::new("yes")
+                            .style(serenity::ButtonStyle::Success)
+                            .label("Yes"),
+                        serenity::CreateButton::new("no")
+                            .style(serenity::ButtonStyle::Danger)
+                            .label("No"),
+                    ])
+                ];
+                let embed = CreateEmbed::default()
+                    .title("Warning")
+                    .description("You already have an existing configuration, do you want to replace it with your new provided parameters?")
+                    .color(0xff0000);
+
+                let reply = CreateReply::default()
+                    .embed(embed)
+                    .components(components);
+                
+                let msg = ctx.send(reply).await?;
+
+                if let Some(mci) = serenity::ComponentInteractionCollector::new(ctx.clone())
+                    .author_id(ctx.author().id)
+                    .channel_id(ctx.channel_id())
+                    .timeout(std::time::Duration::from_secs(120))
+                    .await
+                {
+                    match mci.data.custom_id.as_str() {
+                        "yes" => {
+                            match db.update_level_roles(guild_id.try_into()?, lvl_roles).await {
+                                Ok(_) => {
+                                    msg.edit(ctx, CreateReply::default().content("Updated level roles successfully").components(vec![])).await?;
+                                },
+                                Err(e) => {
+                                    msg.edit(ctx, CreateReply::default().content(format!("Failed to update level roles: {}", e.to_string())).components(vec![])).await?;
+                                },
+                            }
+                        },
+                        "no" => {
+                            msg.edit(ctx, CreateReply::default().content("Operation cancelled").components(vec![])).await?;
+                        },
+                        _ => {}
+                    }
+                    mci.create_response(ctx, serenity::CreateInteractionResponse::Acknowledge).await?;
+                }
+            }
+            Ok(()) // Return Ok(()) after handling the error condition
+        }
+    }
+}
+async fn get_member(ctx: &Context<'_>, guild_id: GuildId, user_id: UserId) -> Option<Member> {
+    if let Some(member) = guild_id.member(&ctx, user_id).await.ok() {
+        Some(member)
+    } else {
+        guild_id.member(&ctx, user_id).await.ok()
+    }
 }
 
 #[poise::command(prefix_command, slash_command)]
