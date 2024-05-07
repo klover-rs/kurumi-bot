@@ -23,7 +23,7 @@ use crate::db::user::xp::Database;
 #[poise::command(
     prefix_command,
     slash_command,
-    subcommands("get_rank", "set_rank", "set_level_roles")
+    subcommands("get_rank", "set_rank", "set_level_roles", "xp_leaderboard", "clear_level_roles")
 )]
 pub async fn rank(ctx: Context<'_>) -> Result<(), Error> {
 
@@ -244,6 +244,44 @@ async fn get_member(ctx: &Context<'_>, guild_id: GuildId, user_id: UserId) -> Op
 }
 
 #[poise::command(prefix_command, slash_command)]
+pub async fn clear_level_roles(ctx: Context<'_>) -> Result<(), Error> {
+
+    let guild_id = match ctx.guild_id() {
+        Some(id) => id,
+        None => {
+            ctx.send(
+                CreateReply::default().embed(CreateEmbed::default()
+                    .title("Error")
+                    .description("this command can only be enforced in guilds.")
+                )
+            ).await?;
+            return Ok(());
+        }
+    };
+    
+    let db = Database::new().await?;
+
+    db.create_table().await?;
+    match db.clear_level_roles(guild_id.try_into()?).await {
+        Ok(_) => {
+            ctx.send(CreateReply::default().embed(CreateEmbed::default()
+                .title("Success")
+                .description("Cleared level roles successfully")
+            )).await?;
+            return Ok(())
+        },
+        Err(e) => {
+            ctx.send(CreateReply::default().embed(CreateEmbed::default()
+                .title("Error")
+                .description(format!("Failed to clear level roles: {}", e.to_string()))
+            )).await?;
+            return Ok(())
+        }
+    };
+
+}
+
+#[poise::command(prefix_command, slash_command)]
 pub async fn set_rank(ctx: Context<'_>, user: User, rank: u16) -> Result<(), Error> {
 
     let guild_id = match ctx.guild_id() {
@@ -335,6 +373,48 @@ pub async fn get_rank(
 
         ctx.send(CreateReply::default().embed(embed)).await?;
     }
+
+    Ok(())
+}
+
+#[poise::command(prefix_command, slash_command)]
+pub async fn xp_leaderboard(ctx: Context<'_>) -> Result<(), Error> {
+
+    let guild_id = match ctx.guild_id() {
+        Some(id) => id,
+        None => {
+            ctx.send(
+                CreateReply::default().embed(CreateEmbed::default()
+                    .title("Error")
+                    .description("This command can only be used in guilds")
+                ).ephemeral(true)
+            ).await?;
+            return Ok(());
+        }
+    };
+
+    let db = Database::new().await?;
+    db.create_table().await?;
+
+    let top_10_leaderboard = db.top_10_xp(guild_id.try_into()?).await?;
+
+    let mut leaderboard_text = String::new();
+    for (index, xp_record) in top_10_leaderboard.iter().enumerate() {
+        leaderboard_text.push_str(&format!(
+            "({}) **User**: <@{}>, **rank**: {}, **XP**: {}\n",
+            index + 1,
+            xp_record.uid,
+            xp_record.rank, 
+            xp_record.xp
+        ));
+    }
+
+    let embed = CreateEmbed::default()
+        .title("Top 10 Leaderboard")
+        .description(leaderboard_text)
+        .color(serenity::colours::roles::DARK_RED);
+
+    ctx.send(CreateReply::default().embed(embed)).await?;
 
     Ok(())
 }
