@@ -138,6 +138,23 @@ impl Database {
 
         Ok(row.try_get(0)?)
     }
+
+    pub async fn top_10_xp(&self, guild_id: i64) -> Result<Vec<Xp>, Error> {
+        let mut xp_record = Vec::new();
+
+        let query = "SELECT * FROM xp ORDER BY xp DESC LIMIT 10";
+
+        let rows = sqlx::query(query)
+            .bind(guild_id)
+            .fetch_all(&self.pool)
+            .await?;
+
+        for row in rows {
+            xp_record.push(parse_xp_record(row)?);
+        }
+            
+        Ok(xp_record)
+    }
 }
 
 fn parse_xp_record(row: PgRow) -> Result<Xp, Error> {
