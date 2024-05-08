@@ -18,7 +18,7 @@ use serenity::builder::CreateEmbed;
 )]
 ///Get help for the neko commands
 pub async fn neko(ctx: Context<'_>) -> Result<(), Error> {
-    let result = download_docs::get_docs(&"docs/commands/user/neko.md").unwrap();
+    let result = download_docs::get_docs(&"commands/user/neko.md").unwrap();
 
     ctx.send(
         CreateReply::default().embed(
