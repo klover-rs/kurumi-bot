@@ -1,4 +1,3 @@
-use crate::commands::user;
 use crate::Error;
 
 use poise::serenity_prelude::GuildId;
