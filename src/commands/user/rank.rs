@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 use std::str::FromStr;
 
+use crate::download_docs;
 use crate::{Context, Error};
 
 use poise::serenity_prelude::CreateAttachment;
@@ -23,9 +24,40 @@ use crate::db::user::xp::Database;
 #[poise::command(
     prefix_command,
     slash_command,
-    subcommands("get_rank", "set_rank", "set_level_roles", "xp_leaderboard", "clear_level_roles", "upload_level_roles")
+    subcommands("get_rank", "set_rank", "set_level_roles", "xp_leaderboard", "clear_level_roles", "upload_level_roles", "help")
 )]
 pub async fn rank(ctx: Context<'_>) -> Result<(), Error> {
+
+    let result = download_docs::get_docs(&"commands/user/rank.md")
+        .unwrap();
+
+    ctx.send(
+        CreateReply::default().embed(
+            CreateEmbed::default()
+                .title("Help")
+                .description(format!("{}", result))
+                .color(serenity::colours::roles::DARK_RED),
+        ),
+    )
+    .await?;
+
+    Ok(())
+}
+
+#[poise::command(prefix_command, slash_command)]
+pub async fn help(ctx: Context<'_>) -> Result<(), Error> {
+    let result = download_docs::get_docs(&"commands/user/rank.md")
+        .unwrap();
+
+    ctx.send(
+        CreateReply::default().embed(
+            CreateEmbed::default()
+                .title("Help")
+                .description(format!("{}", result))
+                .color(serenity::colours::roles::DARK_RED),
+        ),
+    )
+    .await?;
 
     Ok(())
 }
@@ -86,7 +118,13 @@ pub async fn upload_level_roles(
 
     let file_bytes = file_content.as_slice();
     let file_string = match std::str::from_utf8(file_bytes) {
-        Ok(v) => v.chars().filter(|&c| !c.is_whitespace()).collect::<String>(),
+        Ok(v) => {
+            if extension == "json" {
+                v.chars().filter(|&c| !c.is_whitespace()).collect::<String>()
+            } else {
+                v.to_string()
+            }
+        },
         Err(e) => {
             ctx.send(
                 CreateReply::default().embed(CreateEmbed::default()
@@ -435,7 +473,8 @@ async fn insert_level_roles(ctx: Context<'_>, guild_id: GuildId, lvl_roles: &str
 
                 let reply = CreateReply::default()
                     .embed(embed)
-                    .components(components);
+                    .components(components)
+                    .ephemeral(true);
                 
                 let msg = ctx.send(reply).await?;
 
