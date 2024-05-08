@@ -23,12 +23,256 @@ use crate::db::user::xp::Database;
 #[poise::command(
     prefix_command,
     slash_command,
-    subcommands("get_rank", "set_rank", "set_level_roles", "xp_leaderboard", "clear_level_roles")
+    subcommands("get_rank", "set_rank", "set_level_roles", "xp_leaderboard", "clear_level_roles", "upload_level_roles")
 )]
 pub async fn rank(ctx: Context<'_>) -> Result<(), Error> {
 
     Ok(())
 }
+
+#[poise::command(
+    prefix_command, 
+    slash_command,
+    
+)]
+pub async fn upload_level_roles(
+    ctx: Context<'_>,
+    #[description = "upload a file containing your level roles (supported formats: .json, .toml)"] file: serenity::Attachment
+) -> Result<(), Error> {
+
+    let guild_id = match ctx.guild_id() {
+        Some(id) => id,
+        None => {
+            ctx.send(
+                CreateReply::default().embed(CreateEmbed::default()
+                    .title("Error")
+                    .description("this command can only be enforced in guilds.")
+                )
+            ).await?;
+            return Ok(());
+        }
+    };
+
+    let filename_parts = file.filename.split(".").collect::<Vec<&str>>();
+    let extension = *filename_parts.last().unwrap();
+
+    let mut valid_roles: Vec<(i32, RoleId)> = Vec::new();
+    let mut errors: Vec<String> = Vec::new();
+    let mut processed_ordering_ids: HashSet<i32> = HashSet::new();
+    let mut processed_role_ids: HashSet<i64> = HashSet::new();
+    let bot_uid = UserId::from_str(get_secret("APP_ID").as_str()).unwrap();
+    let bot_roles = match get_member(&ctx, guild_id, bot_uid).await {
+        Some(member) => {
+            
+            match member.roles(ctx) {
+                Some(roles) => roles,
+                None => {
+                    ctx.send(CreateReply::default().embed(
+                        CreateEmbed::default()
+                            .title("Error")
+                            .description("The bot needs to have at least one role.")
+                    )).await?;
+                    return Ok(())
+                }
+            }
+        },
+        None => return Ok(()),
+    };
+
+    let highest_role = bot_roles.iter().max_by_key(|role| role.position).unwrap();
+
+
+    let file_content = file.download().await?;
+
+    let file_bytes = file_content.as_slice();
+    let file_string = match std::str::from_utf8(file_bytes) {
+        Ok(v) => v.chars().filter(|&c| !c.is_whitespace()).collect::<String>(),
+        Err(e) => {
+            ctx.send(
+                CreateReply::default().embed(CreateEmbed::default()
+                    .title("Error")
+                    .description(format!("an error occurred while trying to parse the json file:\n{}", &e.to_string()))
+                )
+            ).await?;
+            return Ok(());
+        }
+    };
+
+    println!("file string: {:?}", &file_string);
+
+    match extension {
+        "json" => {
+            let phrased_json: serde_json::Value = match serde_json::from_str(&file_string) {
+                Ok(v) => v,
+                Err(e) => {
+                    ctx.send(
+                        CreateReply::default().embed(CreateEmbed::default()
+                            .title("Error")
+                            .description(format!("an error occurred while trying to parse the json file:\n{}", &e.to_string()))
+                        )
+                    ).await?;
+                    return Ok(());
+                }
+            };
+
+
+            if let serde_json::Value::Object(map) = phrased_json {
+
+                let mut index = 0;
+
+                for (key, value) in map.iter() {
+                    index += 1;
+                    let key = match key.parse::<i32>() {
+                        Ok(ordering_number) => ordering_number,
+                        Err(e) => {
+                            errors.push(format!("Error on line {}: {}", index, e.to_string()));
+                            println!("{:?}", key);
+                            continue;
+                        }
+                    };
+                    let role_id_number = match value.to_string().trim_matches('"').parse::<i64>() {
+                        Ok(role_id) => role_id,
+                        Err(e) => {
+                            errors.push(format!("Error on line {}: {}", index, e.to_string()));
+                            continue;
+                        }
+                    };
+
+                    if !processed_ordering_ids.insert(key) {
+                        errors.push(format!("Error on line {}: Ordering number {} is not unique", index, key));
+                        continue;
+                    } else if !processed_role_ids.insert(role_id_number) {
+                        errors.push(format!("Error on line {}: role id {} is not unique", index, role_id_number));
+                        continue;
+                    }
+
+                    match guild_id.roles(ctx).await?.get(&RoleId::from(role_id_number as u64)) {
+                        Some(role) => {
+                            if highest_role.position < role.position {
+                                errors.push(format!("Role with ID {} is higher than the highest role of the bot", role_id_number));
+                            } else {
+                                valid_roles.push((index, role.id));
+                            }
+                        }
+                        None => {
+                            errors.push(format!("Role with ID {} not found", role_id_number));
+                        }
+                    }
+
+                }
+            }
+        }
+        "toml" => {
+            let toml_data: toml::Value = match toml::from_str(&file_string) {
+                Ok(v) => v,
+                Err(e) => {
+                    ctx.send(
+                        CreateReply::default().embed(CreateEmbed::default()
+                            .title("Error")
+                            .description(format!("an error occurred while trying to parse the toml file:\n{}", &e.to_string()))
+                        )
+                    ).await?;
+                    return Ok(());
+                }
+            };
+
+            if let toml::Value::Table(map) = toml_data {
+                let mut index = 0;
+
+                for (key, value) in map.iter() {
+                    index += 1;
+                    let key = match key.parse::<i32>() {
+                        Ok(ordering_number) => ordering_number,
+                        Err(e) => {
+                            errors.push(format!("Error on line {}: {}", index, e.to_string()));
+                            continue;
+                        }
+                    };
+
+                    let role_id_number = match value.to_string().trim_matches('"').parse::<i64>() {
+                        Ok(role_id) => role_id,
+                        Err(e) => {
+                            errors.push(format!("Error on line {}: {}", index, e.to_string()));
+                            continue;
+                        }
+                    };
+
+                    if !processed_ordering_ids.insert(key) {
+                        errors.push(format!("Error on line {}: Ordering number {} is not unique", index, key));
+                        continue;
+                    } else if !processed_role_ids.insert(role_id_number) {
+                        errors.push(format!("Error on line {}: role id {} is not unique", index, role_id_number));
+                        continue;
+                    }
+
+                    match guild_id.roles(ctx).await?.get(&RoleId::from(role_id_number as u64)) {
+                        Some(role) => {
+                            if highest_role.position < role.position {
+                                errors.push(format!("Role with ID {} is higher than the highest role of the bot", role_id_number));
+                            } else {
+                                valid_roles.push((index, role.id));
+                            }
+                        }
+                        None => {
+                            errors.push(format!("Role with ID {} not found", role_id_number));
+                        }
+                    }
+                    
+                }
+            }
+        }
+        _ => {
+            println!("Unsupported file format");
+            ctx.send(CreateReply::default().embed(
+                CreateEmbed::default()
+                    .title("Unsupported file format.")
+                    .description("Only .json and .toml files are supported.")
+            )).await?;
+            return Ok(());
+        }
+
+    }
+
+    if errors.is_empty() {
+        println!("All roles validated successfully:");
+        ctx.send(CreateReply::default().embed(
+            CreateEmbed::default()
+                .title("Result")
+                .description(format!("All roles validated successfully: \n{:?}", &valid_roles))
+                .color(0x77ff01)
+        )).await?;
+    } else {
+        println!("Errors encountered during validation:");
+        if valid_roles.is_empty() {
+            ctx.send(CreateReply::default().embed(
+                CreateEmbed::default()
+                    .title("Error")
+                    .description(format!("No valid roles found, encountered error: \n{}", &errors.join("\n---------\n")))
+                    .color(0xff0000)
+            )).await?;
+            return Ok(());
+        } else {
+            ctx.send(CreateReply::default().embed(
+                CreateEmbed::default()
+                    .title("Result")
+                    .description(format!("The following roles have been validated:\n{:?}\n**Errors:**\n{}", &valid_roles, &errors.join("\n---------\n")))
+                    .color(0xffff00)
+            )).await?;
+        }
+    }
+
+    let mut valid_roles_str = String::new();
+    for (ordering_number, role_id) in valid_roles {
+        let role_id_str = role_id.to_string();
+        valid_roles_str.push_str(&format!("{}={},", ordering_number, role_id_str));
+    }
+    valid_roles_str.pop();
+
+    insert_level_roles(ctx, guild_id, &valid_roles_str).await?;
+
+    Ok(())
+}
+
 
 #[poise::command(
     prefix_command, 
@@ -78,10 +322,6 @@ pub async fn set_level_roles(
     };
 
     let highest_role = bot_roles.iter().max_by_key(|role| role.position).unwrap();
-    
-    if highest_role.position > 1 {
-        println!("test");
-    } 
 
     for (index, role) in roles.split(',').enumerate() {
         let parts: Vec<&str> = role.split('=').collect();
@@ -102,7 +342,7 @@ pub async fn set_level_roles(
         let ordering_number = ordering_number.unwrap();
 
         if !processed_ordering_ids.insert(ordering_number) {
-            errors.push(format!("Duplicated index key {} at position {}", role_id, index + 1));
+            errors.push(format!("Duplicated index key {} at position {}", ordering_number, index + 1));
             continue;
         } else if !processed_role_ids.insert(role_id) {
             errors.push(format!("Duplicated role ID {} at position {}", role_id, index + 1));
@@ -125,7 +365,6 @@ pub async fn set_level_roles(
     }
 
     if errors.is_empty() {
-        println!("All roles validated successfully:");
         ctx.send(CreateReply::default().embed(
             CreateEmbed::default()
                 .title("Result")
@@ -155,8 +394,6 @@ pub async fn set_level_roles(
         valid_roles_str.push_str(&format!("{}={},", ordering_number, role_id_str));
     }
     valid_roles_str.pop();
-
-    println!("valid roles: {}", &valid_roles_str);
 
     insert_level_roles(ctx, guild_id, &valid_roles_str).await?;
 
@@ -307,9 +544,6 @@ pub async fn set_rank(ctx: Context<'_>, user: User, rank: u16) -> Result<(), Err
         ).await?;
         return Ok(());
     }
-    
-    println!("rank: {}", rank);
-    println!("xp: {:?}", calculate_xp_from_rank(rank as i64));
 
     let (xp, xp_in_this_rank) = calculate_xp_from_rank(rank as i64);
 
