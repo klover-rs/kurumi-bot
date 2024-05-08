@@ -194,6 +194,7 @@ pub async fn upload(
                     .title("Unsupported file format.")
                     .description("Only .json and .toml files are supported.")
             )).await?;
+            return Ok(());
         }
     }
 
