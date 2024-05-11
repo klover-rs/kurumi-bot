@@ -181,7 +181,7 @@ pub async fn delete(
 /// Provides help information about command usage
 #[poise::command(prefix_command, slash_command)]
 async fn help(ctx: Context<'_>) -> Result<(), Error> {
-    let result = download_docs::get_docs(&"docs/commands/timer.md").unwrap();
+    let result = download_docs::get_docs(&"commands/timer.md").unwrap();
 
     ctx.send(
         CreateReply::default().embed(

@@ -1,4 +1,4 @@
-use crate::{secrets::get_secret, PrintError};
+use crate::secrets::get_secret;
 use serde::{Deserialize, Serialize};
 use crate::Error;
 use sqlx::{postgres::PgRow, PgPool, Row};
@@ -11,6 +11,8 @@ pub struct Configuration {
     pub guild_id: i64,
     pub log_channel: i64,
     pub mod_log_channel: i64,
+    pub welcome_channel: i64,
+    pub xp_channel: i64,
 }
 
 impl Database {
@@ -23,14 +25,15 @@ impl Database {
         let url = url.as_str();
         let pool = sqlx::postgres::PgPool::connect(url).await?;
         Ok(Self { pool })
-        /* postgresql://postgres:7522@localhost:5432/kurumi_shit"  */
     }
 
     pub async fn create_table(&self) -> Result<(), Error> {
         sqlx::query("CREATE TABLE IF NOT EXISTS configuration (
             guild_id BIGINT PRIMARY KEY,
             log_channel BIGINT DEFAULT 0,
-            mod_log_channel BIGINT DEFAULT 0
+            mod_log_channel BIGINT DEFAULT 0,
+            welcome_channel BIGINT DEFAULT 0,
+            xp_channel BIGINT DEFAULT 0
         )")
         .execute(&self.pool)
         .await?;
@@ -42,44 +45,27 @@ impl Database {
         &self,
         guild_id: i64,
         log_channel: Option<i64>,
-        mod_log_channel: Option<i64>
+        mod_log_channel: Option<i64>,
+        welcome_channel: Option<i64>,
+        xp_channel: Option<i64>,
     ) -> Result<(), Error> {
-        let trans = self.pool.begin().await?;
+        let mut trans = self.pool.begin().await?;
 
-        
+        let log_channel = log_channel.unwrap_or(0);
+        let mod_log_channel = mod_log_channel.unwrap_or(0);
+        let welcome_channel = welcome_channel.unwrap_or(0);
+        let xp_channel = xp_channel.unwrap_or(0);
 
-        match (log_channel, mod_log_channel) {
-            (Some(log_channel), Some(mod_log_channel)) => {
-                sqlx::query("INSERT INTO configuration (guild_id, log_channel, mod_log_channel) VALUES ($1, $2, $3)")
-                    .bind(guild_id)
-                    .bind(log_channel)
-                    .bind(mod_log_channel)
-                    .execute(&self.pool)
-                    .await?;
-                trans.commit().await?;
-            }
-            (Some(log_channel), None) => {
-                sqlx::query("INSERT INTO configuration (guild_id, log_channel) VALUES ($1, $2)")
-                    .bind(guild_id)
-                    .bind(log_channel)
-                    .execute(&self.pool)
-                    .await?;
+        sqlx::query("INSERT INTO configuration (guild_id, log_channel, mod_log_channel, welcome_channel, xp_channel) VALUES ($1, $2, $3, $4, $5)")
+            .bind(guild_id)
+            .bind(log_channel)
+            .bind(mod_log_channel)
+            .bind(welcome_channel)
+            .bind(xp_channel)
+            .execute(&mut *trans)
+            .await?;
 
-                trans.commit().await?;
-            }
-            (None, Some(mod_log_channel)) => {
-                sqlx::query("INSERT INTO configuration (guild_id, mod_log_channel) VALUES ($1, $2)")
-                    .bind(guild_id)
-                    .bind(mod_log_channel)
-                    .execute(&self.pool)
-                    .await?;
-
-                trans.commit().await?;
-            }
-            (None, None) => {
-                return Err(Box::new(PrintError("No log_channel or mod_log_channel provided".to_string())));
-            }
-        }
+        trans.commit().await?;
 
         Ok(())
     }
@@ -88,41 +74,28 @@ impl Database {
         &self,
         guild_id: i64,
         log_channel: Option<i64>,
-        mod_log_channel: Option<i64>
+        mod_log_channel: Option<i64>,
+        welcome_channel: Option<i64>,
+        xp_channel: Option<i64>,
     ) -> Result<(), Error> {
         let mut trans = self.pool.begin().await?;
 
-        println!("INSERTING:\n{:?}\n{:?}", log_channel, mod_log_channel);
+        let log_channel = log_channel.unwrap_or(0);
+        let mod_log_channel = mod_log_channel.unwrap_or(0);
+        let welcome_channel = welcome_channel.unwrap_or(0);
+        let xp_channel = xp_channel.unwrap_or(0);
 
-        match (log_channel, mod_log_channel) {
-            (Some(log_channel), Some(mod_log_channel)) => {
-                sqlx::query("UPDATE configuration SET log_channel = $1, mod_log_channel = $2 WHERE guild_id = $3")
-                    .bind(log_channel)
-                    .bind(mod_log_channel)
-                    .bind(guild_id)
-                    .execute(&mut *trans)
-                    .await?;
-            }
-            (Some(log_channel), None) => {
-                sqlx::query("UPDATE configuration SET log_channel = $1 WHERE guild_id = $2")
-                    .bind(log_channel)
-                    .bind(guild_id)
-                    .execute(&mut *trans)
-                    .await?;
-            }
-            (None, Some(mod_log_channel)) => {
-                sqlx::query("UPDATE configuration SET mod_log_channel = $1 WHERE guild_id = $2")
-                    .bind(mod_log_channel)
-                    .bind(guild_id)
-                    .execute(&mut *trans)
-                    .await?;
-            }
-            (None, None) => {
-                return Err(Box::new(PrintError("No log_channel or mod_log_channel provided".to_string())));
-            }
-        }
+        sqlx::query("UPDATE configuration SET log_channel = $1, mod_log_channel = $2, welcome_channel = $3, xp_channel = $4 WHERE guild_id = $5")
+            .bind(log_channel)
+            .bind(mod_log_channel)
+            .bind(welcome_channel)
+            .bind(xp_channel)   
+            .bind(guild_id)
+            .execute(&mut *trans)
+            .await?;
 
         trans.commit().await?;
+
         Ok(())
     }
 
@@ -149,12 +122,16 @@ impl Database {
         trans.commit().await?;
         Ok(())
     }
+
 }
 
 fn parse_configuration_record(row: PgRow) -> Result<Configuration, Error> {
     Ok(Configuration {
         guild_id: row.try_get(0)?,
         log_channel: row.try_get(1)?,
-        mod_log_channel: row.try_get(2)?
+        mod_log_channel: row.try_get(2)?,
+        welcome_channel: row.try_get(3)?,
+        xp_channel: row.try_get(4)?,
     })
 }
+

@@ -8,9 +8,6 @@ once you have it create in ur project root dir a file called "Secrets.toml" you 
 ```toml
 DISCORD_TOKEN="replace with ur token"
 APP_ID="your app id"
-GITHUB_REPO="your github repo (e.g. Asm-Rosie/kurumi-bot)
-GITHUB_TOKEN="your github token"
-LOG_CHANNEL="channel id"
 BOT_ID = "bot user id here"
 DB_NAME = "my_bot"
 DB_PW = "your database password"
@@ -29,9 +26,14 @@ after you are in the query tool you can create a new database first for example
 ```SQL
 CREATE DATABASE my_bot
 ```
+after you have done this, dont forget to update your **Secrets.toml**
+
 you can do this in the query tool by using the following query
 ```SQL
 ALTER USER postgres PASSWORD 'your_password';
 ```
 
 after you have ensured that all these values are set start the discord bot with `cargo run`
+
+# What is the goal for this project
+This is mainly a fun project to demonstrate potential usages of the Rust language, our main motivation to maintain this project lays in creating a stable bot which can be hosted on any toaster!

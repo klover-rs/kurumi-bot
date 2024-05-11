@@ -5,7 +5,6 @@ mod db;
 mod download_docs;
 mod events;
 mod handler;
-mod rich_presence;
 mod secrets;
 mod utils;
 
@@ -21,7 +20,13 @@ use commands::{
     },
     rps::*,
     timer::*,
-    user::{avatar::avatar, neko_commands::neko, snipe::snipe, math::math::math},
+    user::{
+        avatar::avatar,
+        neko_commands::neko,
+        snipe::snipe,
+        math::math::math,
+        rank::rank,
+    },
     utilities::configure::configure,
     utils::*,
 };
@@ -79,7 +84,7 @@ async fn main() {
 
     let token = secrets::get_secret("DISCORD_TOKEN");
     let intents =
-        serenity::GatewayIntents::non_privileged() | serenity::GatewayIntents::MESSAGE_CONTENT;
+        serenity::GatewayIntents::non_privileged() | serenity::GatewayIntents::MESSAGE_CONTENT | serenity::GatewayIntents::GUILD_MEMBERS;
 
     let framework = poise::Framework::builder()
         .setup(move |_ctx, _ready, _framework| {
@@ -95,7 +100,7 @@ async fn main() {
         })
         .options(poise::FrameworkOptions {
             commands: vec![
-                avatar(),
+                avatar::avatar(),
                 neko(),
                 configure(),
                 help(),
@@ -110,6 +115,7 @@ async fn main() {
                 ping(),
                 math(),
                 snipe(),
+                rank(),
             ],
             on_error: |error| Box::pin(on_error(error)),
             event_handler: |ctx, event, framework, data| {
@@ -149,8 +155,8 @@ async fn event_handler(
                 new_message.author.name, new_message.content
             );
             handler::message_logging::handle_messages(new_message, _framework)
-                .await
-                .unwrap();
+                .await?;
+            handler::xp_handler::handle_xp(new_message, ctx).await?;
             handler::messages_reactions::message_reactions(new_message, &ctx).await?;
         }
         serenity::FullEvent::MessageDelete {
@@ -164,8 +170,7 @@ async fn event_handler(
                 guild_id.unwrap()
             );
             handler::message_logging::deleted_messages_handler(channel_id, deleted_message_id, &ctx)
-                .await
-                .expect("Failed to delete message\nheheh\n");
+                .await?;
         }
         serenity::FullEvent::MessageUpdate {
             old_if_available: _,
@@ -182,13 +187,16 @@ async fn event_handler(
             match edited_msg {
                 Some(content) => {
                     handler::message_logging::edited_messages_handler(&event.channel_id,&event.id, &content, ctx)
-                        .await
-                        .unwrap();
+                        .await?
                 }
                 None => {
                     println!("edited content is None\n--------------------------------");
                 }
             }
+        }
+        serenity::FullEvent::GuildMemberAddition { new_member } => {
+            println!("new member: {}\n--------------------------------", new_member.user.name);
+            handler::member_join::member_join(new_member, ctx).await?;
         }
         _ => {}
     }

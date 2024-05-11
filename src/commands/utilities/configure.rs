@@ -13,7 +13,8 @@ pub async fn configure(
     ctx: Context<'_>,
 ) -> Result<(), Error> {
     
-    let result = download_docs::get_docs(&"docs/commands/utilities/configure.md").unwrap();
+    let result = download_docs::get_docs(&"commands/utilities/configure.md")
+        .unwrap();
 
     ctx.send(
         CreateReply::default().embed(
@@ -52,6 +53,11 @@ pub async fn upload(
 
     let filename_parts = file.filename.split(".").collect::<Vec<&str>>();
     let extension = *filename_parts.last().unwrap();
+
+    let channels_to_check = vec!["log_channel_id", "mod_log_channel_id", "welcome_channel_id", "xp_channel_id"];
+    let mut valid_channels: Vec<Option<String>> = Vec::new();
+    let mut errors: Vec<String> = Vec::new();
+
     match extension {
         "json" => {
             println!("file format is json");
@@ -73,17 +79,13 @@ pub async fn upload(
                 }
             };
 
-
-            let channels_to_check = vec!["log_channel_id", "mod_log_channel_id"];
-            let mut valid_channels = Vec::new();
-            let mut errors: Vec<String> = Vec::new();
-
             for channel in channels_to_check {
                 let channel_id = match pharse_channel_id_serde(&phrased, channel) {
                     Ok(v) => v,
                     Err(e) => {
                         let error_message = format!("Error processing channel '{}': {}", channel, e);
                         errors.push(error_message);
+                        valid_channels.push(None);
                         continue;
                     }
                 };
@@ -95,55 +97,30 @@ pub async fn upload(
                                 Some(v) => v.guild_id,
                                 None => {
                                     errors.push(format!("Error processing channel '{:?}': channel is not in a guild", v.id()));
+                                    valid_channels.push(None);
                                     continue;
                                 }
                             },
                             Err(e) => {
                                 errors.push(format!("Error processing channel '{}': {}", v, e));
+                                valid_channels.push(None);
                                 continue;
                             }
 
                         };
 
                         if guild_channel_id == guild_id {
-                            valid_channels.push(v.to_string());
+                            valid_channels.push(Some(v.to_string()));
+                        } else {
+                            errors.push(format!("Error processing channel '{}': channel is not in this guild", v));
+                            valid_channels.push(None);
                         }
                     }
                     None => {
+                        valid_channels.push(None);
                         continue;
                     }
                 }
-            }
-
-            for e in &errors {
-                println!("error: {}",  e);
-            }
-
-            if errors.len() > 0 {
-                ctx.send(
-                    CreateReply::default().embed(CreateEmbed::default()
-                        .title("Error")
-                        .description(format!("An error occurred while processing the json file\n\n{}", errors.join("\n--------------\n")))
-                    ).ephemeral(true)
-                ).await?;
-            
-            }
-
-            if valid_channels.len() > 0 {
-
-                let log_channel = if valid_channels.len() > 0 {
-                    Some(valid_channels[0].clone().parse::<i64>().unwrap())
-                } else {
-                    None
-                };
-                
-                let mod_log_channel = if valid_channels.len() > 1 {
-                    Some(valid_channels[1].clone().parse::<i64>().unwrap())
-                } else {
-                    None 
-                };
-                insert_config(ctx, guild_id.to_string().parse().unwrap(), log_channel, mod_log_channel).await?;
-
             }
             
         }
@@ -166,16 +143,13 @@ pub async fn upload(
                 }
             };
 
-            let channels_to_check = vec!["log_channel_id", "mod_log_channel_id"];
-            let mut valid_channels = Vec::new();
-            let mut errors: Vec<String> = Vec::new();
-
             for channel in channels_to_check {
                 let channel_id = match phrase_channel_id_toml(&toml_data, channel) {
                     Ok(v) => v,
                     Err(e) => {
                         let error_message = format!("Error processing channel '{}': {}", channel, e);
                         errors.push(error_message);
+                        valid_channels.push(None);
                         continue;
                     }
                 };
@@ -187,55 +161,31 @@ pub async fn upload(
                                 Some(v) => v.guild_id,
                                 None => {
                                     errors.push(format!("Error processing channel '{:?}': channel is not in a guild", v.id()));
+                                    valid_channels.push(None);
                                     continue;
                                 }
                             },
                             Err(e) => {
                                 errors.push(format!("Error processing channel '{}': {}", v, e));
+                                valid_channels.push(None);
                                 continue;
                             }
                         };
 
                         if guild_channel_id == guild_id {
-                            valid_channels.push(v.to_string());
+                            valid_channels.push(Some(v.to_string()));
+                        } else {
+                            errors.push(format!("Error processing channel '{}': channel is not in this guild", v));
+                            valid_channels.push(None);
                         }
                     }
                     None => {
+                        valid_channels.push(None);
                         continue;
                     }
                 }
             }
 
-            for e in &errors {
-                println!("error: {}",  e);
-            }
-
-            if errors.len() > 0 {
-                ctx.send(
-                    CreateReply::default().embed(CreateEmbed::default()
-                        .title("Error")
-                        .description(format!("An error occurred while processing the toml file\n\n{}", errors.join("\n--------------\n")))
-                    ).ephemeral(true)
-                ).await?;
-            
-            }
-
-            if valid_channels.len() > 0 {
-
-                let log_channel = if valid_channels.len() > 0 {
-                    Some(valid_channels[0].clone().parse::<i64>().unwrap())
-                } else {
-                    None
-                };
-                
-                let mod_log_channel = if valid_channels.len() > 1 {
-                    Some(valid_channels[1].clone().parse::<i64>().unwrap())
-                } else {
-                    None 
-                };
-                insert_config(ctx, guild_id.to_string().parse().unwrap(), log_channel, mod_log_channel).await?;
-
-            }
         }
         _ => {
             println!("Unsupported file format");
@@ -244,7 +194,40 @@ pub async fn upload(
                     .title("Unsupported file format.")
                     .description("Only .json and .toml files are supported.")
             )).await?;
+            return Ok(());
         }
+    }
+
+    if errors.len() > 0 {
+        ctx.send(
+            CreateReply::default().embed(CreateEmbed::default()
+                .title("Error")
+                .description(format!("An error occurred while processing the toml file\n\n{}", errors.join("\n--------------\n")))
+            ).ephemeral(true)
+        ).await?;
+    
+    }
+
+    if valid_channels.len() > 0 {
+
+        let log_channel = match &valid_channels[0] {
+            Some(v) => Some(v.parse::<i64>().unwrap()),
+            None => None
+        };
+        let mod_log_channel = match &valid_channels[1] {
+            Some(v) => Some(v.parse::<i64>().unwrap()),
+            None => None
+        };
+        let welcome_channel = match &valid_channels[2] {
+            Some(v) => Some(v.parse::<i64>().unwrap()),
+            None => None
+        };
+        let xp_channel = match &valid_channels[3] {
+            Some(v) => Some(v.parse::<i64>().unwrap()),
+            None => None
+        };
+        insert_config(ctx, guild_id.to_string().parse().unwrap(), log_channel, mod_log_channel, welcome_channel, xp_channel).await?;
+
     }
 
     Ok(())
@@ -299,11 +282,11 @@ fn phrase_channel_id_toml(value: &toml::Value, key: &str) -> Result<Option<Chann
 }
 
 
-async fn insert_config(ctx: Context<'_>, guild_id: i64, log_channel: Option<i64>, mod_log_channel: Option<i64>) -> Result<(), Error> {
+async fn insert_config(ctx: Context<'_>, guild_id: i64, log_channel: Option<i64>, mod_log_channel: Option<i64>, welcome_channel: Option<i64>, xp_channel: Option<i64>) -> Result<(), Error> {
 
     let db = Database::new().await?;
     db.create_table().await?;
-    match db.insert(guild_id, log_channel, mod_log_channel).await {
+    match db.insert(guild_id, log_channel, mod_log_channel, welcome_channel, xp_channel).await {
         Ok(_) => {
             ctx.send(
                 CreateReply::default().embed(CreateEmbed::default()
@@ -342,7 +325,7 @@ async fn insert_config(ctx: Context<'_>, guild_id: i64, log_channel: Option<i64>
                     match mci.data.custom_id.as_str() {
                         "yes" => {
                             println!("yes");
-                            match db.update(guild_id, log_channel, mod_log_channel).await {
+                            match db.update(guild_id, log_channel, mod_log_channel, welcome_channel, xp_channel).await {
                                 Ok(_) => {
                                     msg.edit(ctx, CreateReply::default().content(
                                         "updated configuration successfully"
@@ -378,7 +361,10 @@ async fn insert_config(ctx: Context<'_>, guild_id: i64, log_channel: Option<i64>
 #[poise::command(prefix_command, slash_command, required_permissions = "ADMINISTRATOR")]
 pub async fn set(
     ctx: Context<'_>,
-    #[description = "log channel"] log_channel: serenity::ChannelId,
+    #[description = "log channel"] log_channel: Option<serenity::ChannelId>,
+    #[description = "mod log channel"] mod_log_channel: Option<serenity::ChannelId>,
+    #[description = "welcome channel"] welcome_channel: Option<serenity::ChannelId>,
+    #[description = "xp channel"] xp_channel: Option<serenity::ChannelId>,
 ) -> Result<(), Error> {
 
     println!("{:?}", log_channel);
@@ -396,9 +382,24 @@ pub async fn set(
         }
     };
 
-    let log_channel = log_channel.to_string().parse::<i64>().unwrap();
-    
-    insert_config(ctx, guild_id, Some(log_channel), None).await?;
+    let log_channel = match log_channel {
+        Some(channel) => Some(channel.to_string().parse::<i64>().unwrap()),
+        None => None
+    };
+    let mod_log_channel = match mod_log_channel {
+        Some(channel) => Some(channel.to_string().parse::<i64>().unwrap()),
+        None => None
+    };
+    let welcome_channel = match welcome_channel {
+        Some(channel) => Some(channel.to_string().parse::<i64>().unwrap()),
+        None => None
+    };
+    let xp_channel = match xp_channel {
+        Some(channel) => Some(channel.to_string().parse::<i64>().unwrap()),
+        None => None
+    };
+
+    insert_config(ctx, guild_id, log_channel, mod_log_channel, welcome_channel, xp_channel).await?;
 
     Ok(())
 }
@@ -434,7 +435,9 @@ pub async fn get(ctx: Context<'_>) -> Result<(), Error> {
     ctx.send(
         CreateReply::default().embed(CreateEmbed::default()
             .title("Configuration")
-            .field("Log Channel", format!("{}", config[0].log_channel), true)
+            .field("Log Channel", format!("{}", config[0].log_channel), false)
+            .field("Moderation Log Channel", format!("{}", config[0].mod_log_channel), false)
+            .field("Welcome Channel", format!("{}", config[0].welcome_channel), false)
         )
     ).await?;
 
