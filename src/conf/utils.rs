@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 use lazy_static::lazy_static;
+use which::Path;
 const CONFIG_DIR_STD: &str = "kurumi-bot";
 lazy_static::lazy_static! {
     pub static ref CONFIG_DIR: PathBuf = get_config_dir();
@@ -22,6 +23,8 @@ pub fn mk_config_file() -> Result<(), std::io::Error> {
 }
 
 pub fn get_config_file() -> PathBuf {
+    mk_config_file().unwrap();
+
     get_config_dir().join("config.toml")
 }
 pub fn mk_config_dir() -> Result<(), std::io::Error> {

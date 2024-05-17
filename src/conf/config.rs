@@ -18,7 +18,7 @@ pub struct DbConfig {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ConfigFile {
     pub user: Option<HashMap<String, String>>,
-    pub config: Option<HashMap<String, String>>,
+    pub config: Option<HashMap<String, i32>>,
     pub database: Option<HashMap<String, String>>,
 }
 
@@ -80,5 +80,45 @@ impl ConfigFile {
         Ok(toml::from_str::<ConfigFile>(
             &std::fs::read_to_string(config).unwrap(),
         )?)
+    }
+    pub const fn new() -> Self {
+        Self {
+            user: None,
+            config: None,
+            database: None,
+        }
+    }
+
+    pub fn create() -> Result<(), std::io::Error> {
+        let mut config = ConfigFile::new();
+
+        let user = HashMap::from([("user".to_string(), "user".to_string())]);
+        let db_conf = HashMap::from([
+            ("db_user".to_string(), "db_user".to_string()),
+            ("db_pass".to_string(), "db_pass".to_string()),
+        ]);
+        let discord = HashMap::from([
+            ("guild_id".to_string(), 0),
+            ("log_channel".to_string(), 0),
+            ("welcome_channel".to_string(), 0),
+            ("mod_log_channel".to_string(), 0),
+            ("xp_channel".to_string(), 0),
+        ]);
+
+        config.user = Some(user);
+        config.config = Some(discord);
+        config.database = Some(db_conf);
+        let config = toml::to_string(&config).unwrap();
+
+        let dir = utils::get_config_dir();
+
+        if !dir.exists() {
+            utils::mk_config_dir()?;
+        }
+        let file = utils::get_config_file();
+
+        std::fs::write(file, config)?;
+        //
+        Ok(())
     }
 }

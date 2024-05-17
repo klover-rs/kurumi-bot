@@ -1,3 +1,4 @@
+mod cli;
 mod commands;
 mod conf;
 mod db;
@@ -7,6 +8,7 @@ mod handler;
 mod secrets;
 mod utils;
 
+use clap::{Args, Parser, Subcommand};
 use commands::{
     help::*,
     info::*,
@@ -65,8 +67,44 @@ async fn on_error(error: poise::FrameworkError<'_, Data, Error>) {
     }
 }
 
+#[derive(Parser, Debug)]
+#[command(version, about, long_about = None)]
+pub struct Cli {
+    #[command(subcommand)]
+    command: Option<Commands>,
+}
+
+#[derive(Subcommand, Debug)]
+enum Commands {
+    Setup,
+    Start,
+}
+
+#[derive(Args, Debug)]
+struct AddArgs {
+    #[arg(short, long)]
+    name: Option<String>,
+}
+
+fn main() {
+    let cli = Cli::parse();
+
+    if let Some(command) = cli.command {
+        match command {
+            Commands::Start => {
+                let _ = run();
+            }
+            Commands::Setup => {
+                if let Err(e) = conf::config::ConfigFile::create() {
+                    panic!("Failed to create config file: {}", e)
+                }
+            }
+        }
+    }
+}
+
 #[tokio::main]
-async fn main() {
+async fn run() -> Result<(), String> {
     env_logger::init();
 
     let token = secrets::get_secret("DISCORD_TOKEN");
@@ -122,6 +160,7 @@ async fn main() {
         .await;
 
     client.unwrap().start().await.unwrap();
+    Ok(())
 }
 
 async fn event_handler(
