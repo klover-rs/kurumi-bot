@@ -576,4 +576,3 @@ pub async fn clear(ctx: Context<'_>) -> Result<(), Error> {
     }
     Ok(())
 }
-

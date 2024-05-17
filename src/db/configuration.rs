@@ -15,6 +15,22 @@ pub struct Configuration {
     pub xp_channel: i64,
 }
 
+
+impl Configuration {
+    pub fn new() -> Self {
+        Self {
+            guild_id: 0,
+            log_channel: 0,
+            mod_log_channel: 0,
+            welcome_channel: 0,
+            xp_channel: 0,
+        }
+    }
+}
+
+
+
+
 impl Database {
     pub async fn new() -> Result<Self, sqlx::Error> {
         let url = format!(
