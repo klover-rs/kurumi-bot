@@ -1,14 +1,11 @@
-use poise::serenity_prelude as serenity;
-
 mod commands;
+mod conf;
 mod db;
 mod download_docs;
 mod events;
 mod handler;
 mod secrets;
 mod utils;
-
-
 
 use commands::{
     help::*,
@@ -20,21 +17,14 @@ use commands::{
     },
     rps::*,
     timer::*,
-    user::{
-        avatar::avatar,
-        neko_commands::neko,
-        snipe::snipe,
-        math::math::math,
-        rank::rank,
-    },
+    user::{avatar::avatar, math::math::math, neko_commands::neko, rank::rank, snipe::snipe},
     utilities::configure::configure,
     utils::*,
 };
-
+use poise::serenity_prelude as serenity;
 
 // Types used by all command functions
 type Error = Box<dyn std::error::Error + Send + Sync>;
-
 
 pub struct PrintError(String);
 
@@ -77,14 +67,12 @@ async fn on_error(error: poise::FrameworkError<'_, Data, Error>) {
 
 #[tokio::main]
 async fn main() {
-    
-
     env_logger::init();
 
-
     let token = secrets::get_secret("DISCORD_TOKEN");
-    let intents =
-        serenity::GatewayIntents::non_privileged() | serenity::GatewayIntents::MESSAGE_CONTENT | serenity::GatewayIntents::GUILD_MEMBERS;
+    let intents = serenity::GatewayIntents::non_privileged()
+        | serenity::GatewayIntents::MESSAGE_CONTENT
+        | serenity::GatewayIntents::GUILD_MEMBERS;
 
     let framework = poise::Framework::builder()
         .setup(move |_ctx, _ready, _framework| {
@@ -154,10 +142,9 @@ async fn event_handler(
                 "Message from {}: {}\n--------------------------------",
                 new_message.author.name, new_message.content
             );
-            handler::message_logging::handle_messages(new_message, _framework)
-                .await?;
+            handler::message_logging::handle_messages(new_message, _framework).await?;
             handler::xp_handler::handle_xp(new_message, ctx).await?;
-            handler::messages_reactions::message_reactions(new_message, &ctx).await?;
+            handler::messages_reactions::message_reactions(new_message, ctx).await?;
         }
         serenity::FullEvent::MessageDelete {
             channel_id,
@@ -169,7 +156,7 @@ async fn event_handler(
                 deleted_message_id,
                 guild_id.unwrap()
             );
-            handler::message_logging::deleted_messages_handler(channel_id, deleted_message_id, &ctx)
+            handler::message_logging::deleted_messages_handler(channel_id, deleted_message_id, ctx)
                 .await?;
         }
         serenity::FullEvent::MessageUpdate {
@@ -186,8 +173,13 @@ async fn event_handler(
 
             match edited_msg {
                 Some(content) => {
-                    handler::message_logging::edited_messages_handler(&event.channel_id,&event.id, &content, ctx)
-                        .await?
+                    handler::message_logging::edited_messages_handler(
+                        &event.channel_id,
+                        &event.id,
+                        &content,
+                        ctx,
+                    )
+                    .await?
                 }
                 None => {
                     println!("edited content is None\n--------------------------------");
@@ -195,7 +187,10 @@ async fn event_handler(
             }
         }
         serenity::FullEvent::GuildMemberAddition { new_member } => {
-            println!("new member: {}\n--------------------------------", new_member.user.name);
+            println!(
+                "new member: {}\n--------------------------------",
+                new_member.user.name
+            );
             handler::member_join::member_join(new_member, ctx).await?;
         }
         _ => {}
