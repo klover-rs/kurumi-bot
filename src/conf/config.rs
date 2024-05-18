@@ -15,7 +15,11 @@ pub struct User {
     pub token: String,
     pub app_id: String,
 }
-
+pub struct BotConfig {
+    pub bot_name: Option<String>,
+    pub bot_token: Option<String>,
+    pub bot_id: Option<String>,
+}
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct DbConfig {
     pub user: Option<String>,
@@ -26,14 +30,14 @@ pub struct DbConfig {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ConfigFile {
-    pub user: Option<HashMap<String, String>>,
-
+    pub config: Option<HashMap<String, String>>,
+    pub bot: Option<BotConfig>,
     pub database: Option<DbConfig>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Config {
-    pub user: User,
+    pub config: User,
 
     pub db: DbConfig,
 }
@@ -51,7 +55,7 @@ impl Config {
             "localhost".to_string(),
             0,
         );
-        Self { user, config, db }
+        Self { config: user, db }
     }
 
     pub fn get() -> Result<Self, String> {
@@ -61,7 +65,7 @@ impl Config {
             Err(e) => return Err(e.to_string()),
         };
 
-        if let Some(user_tmp) = config.user {
+        if let Some(user_tmp) = config.config {
             let mut user_name = String::new();
             let mut user_pass = String::new();
             let mut user_token = String::new();
@@ -75,6 +79,7 @@ impl Config {
                     user.app_id = v
                 }
             }
+            cf.config = user;
         }
 
         if let Some(db) = config.database {
@@ -96,21 +101,6 @@ impl Config {
             //     db_port = port
             // }
             cf.db = db.clone();
-        }
-
-        if let Some(config) = config.config {
-            let mut discord_conf = Configuration::new();
-            for (k, v) in config {
-                match k.as_str() {
-                    "guild_id" => discord_conf.guild_id = v,
-                    "log_channel" => discord_conf.log_channel = v,
-                    "welcome_channel" => discord_conf.welcome_channel = v,
-                    "mod_log_channel" => discord_conf.mod_log_channel = v,
-                    "xp_channel" => discord_conf.xp_channel = v,
-                    _ => {}
-                }
-            }
-            cf.config = discord_conf;
         }
 
         Ok(cf)
@@ -146,8 +136,8 @@ impl ConfigFile {
     }
     pub const fn new() -> Self {
         Self {
-            user: None,
             config: None,
+            bot: None,
             database: None,
         }
     }
@@ -172,7 +162,9 @@ impl ConfigFile {
     pub fn create() -> Result<(), std::io::Error> {
         let mut config = ConfigFile::new();
 
-        let user = HashMap::from([("user".to_string(), "user".to_string())]);
+        let mut user = HashMap::from([("user".to_string(), "user".to_string())]);
+        user.insert("token".to_string(), "token".to_string());
+        user.insert("app_id".to_string(), "app_id".to_string());
         let db_conf = HashMap::from([
             ("db_user".to_string(), "db_user".to_string()),
             ("db_pass".to_string(), "db_pass".to_string()),
@@ -191,8 +183,10 @@ impl ConfigFile {
             "localhost".to_string(),
             0,
         );
-        config.user = Some(user);
-        config.config = Some(discord);
+
+        let bot = BotConfig {};
+        config.config = Some(user);
+
         config.database = Some(db);
         let config = toml::to_string(&config).unwrap();
 
