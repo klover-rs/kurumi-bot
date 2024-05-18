@@ -15,10 +15,10 @@ pub struct User {
     pub token: String,
     pub app_id: String,
 }
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct BotConfig {
-    pub bot_name: Option<String>,
-    pub bot_token: Option<String>,
-    pub bot_id: Option<String>,
+    pub name: Option<String>,
+    pub id: Option<String>,
 }
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct DbConfig {
@@ -38,7 +38,7 @@ pub struct ConfigFile {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Config {
     pub config: User,
-
+    pub bot: BotConfig,
     pub db: DbConfig,
 }
 
@@ -55,7 +55,15 @@ impl Config {
             "localhost".to_string(),
             0,
         );
-        Self { config: user, db }
+        let bot = BotConfig {
+            name: Some(String::from("kurumi-bot")),
+            id: Some(String::from("bot_id")),
+        };
+        Self {
+            config: user,
+            db,
+            bot,
+        }
     }
 
     pub fn get() -> Result<Self, String> {
@@ -80,6 +88,9 @@ impl Config {
                 }
             }
             cf.config = user;
+        }
+        if let Some(bot) = config.bot {
+            cf.bot = bot;
         }
 
         if let Some(db) = config.database {
@@ -184,9 +195,12 @@ impl ConfigFile {
             0,
         );
 
-        let bot = BotConfig {};
+        let bot = BotConfig {
+            name: Some(String::from("kurumi-bot")),
+            id: Some(String::from("bot_id")),
+        };
         config.config = Some(user);
-
+        config.bot = Some(bot);
         config.database = Some(db);
         let config = toml::to_string(&config).unwrap();
 
