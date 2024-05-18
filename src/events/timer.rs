@@ -1,14 +1,11 @@
 use crate::{db::timer::Database, secrets::get_secret};
 use chrono::Utc;
-use serde_json::{json, Value};
 use reqwest::Client;
-use tokio::task;
+use serde_json::{json, Value};
 use std::sync::Arc;
-
+use tokio::task;
 
 pub async fn check_timer() {
-
-
     let db = Arc::new(Database::new().await.unwrap());
     db.create_table().await.unwrap();
 
@@ -20,18 +17,16 @@ pub async fn check_timer() {
         loop {
             match database.read().await {
                 Ok(data) => {
-
                     let current_timestamp = Utc::now().timestamp();
 
                     for timer_recs in data {
                         if current_timestamp >= timer_recs.duration {
                             println!("Timer expired: {}", timer_recs.uid);
-                            
 
                             let embed = json!({
                                 "title": "Timer expired",
                                 "description": "the timer expired",
-                                "color": 16711680, 
+                                "color": 16711680,
                                 "fields": [
                                     {"name": "Description", "value": timer_recs.description},
                                     {"name": "User", "value": format!("<@{}>", timer_recs.uid)}
@@ -40,7 +35,13 @@ pub async fn check_timer() {
 
                             database.delete_by_id(timer_recs.id).await.unwrap();
 
-                            if let Err(err) = send_message(&timer_recs.dm_channel.to_string(), &format!("<@{}>", timer_recs.uid), Some(embed)).await {
+                            if let Err(err) = send_message(
+                                &timer_recs.dm_channel.to_string(),
+                                &format!("<@{}>", timer_recs.uid),
+                                Some(embed),
+                            )
+                            .await
+                            {
                                 println!("Failed to send message: {:?}", err);
                             }
                         }
@@ -53,14 +54,19 @@ pub async fn check_timer() {
             tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
         }
     });
-
 }
 
-
-async fn send_message(channel_id: &str, message: &str, embed: Option<Value>) -> Result<(), reqwest::Error> {
+async fn send_message(
+    channel_id: &str,
+    message: &str,
+    embed: Option<Value>,
+) -> Result<(), reqwest::Error> {
     let client = Client::new();
 
-    let url = format!("https://discord.com/api/v9/channels/{}/messages", channel_id);
+    let url = format!(
+        "https://discord.com/api/v9/channels/{}/messages",
+        channel_id
+    );
 
     let mut json_body = json!({
         "content": message
@@ -70,8 +76,12 @@ async fn send_message(channel_id: &str, message: &str, embed: Option<Value>) -> 
         json_body["embed"] = embed_data;
     }
 
-    let response = client.post(&url)
-        .header("Authorization", format!("Bot {}", get_secret("DISCORD_TOKEN")))
+    let response = client
+        .post(&url)
+        .header(
+            "Authorization",
+            format!("Bot {}", get_secret("DISCORD_TOKEN")),
+        )
         .header("Content-Type", "application/json")
         .json(&json_body)
         .send()
@@ -84,4 +94,4 @@ async fn send_message(channel_id: &str, message: &str, embed: Option<Value>) -> 
     }
 
     Ok(())
-} 
+}

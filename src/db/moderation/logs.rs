@@ -158,24 +158,21 @@ impl DatabaseMsgLogs {
         Ok(())
     }
 
-
     pub async fn read_logs_by_id(&self, msg_id: i64, guild_id: i64) -> Result<Vec<MsgLogs>, Error> {
         let rows = sqlx::query("SELECT * FROM msg_logs WHERE msg_id = $1 AND guild_id = $2")
             .bind(msg_id)
             .bind(guild_id)
             .fetch_all(&self.pool)
             .await?;
-    
+
         let mut msg_logs = Vec::new();
-    
+
         for row in rows {
             msg_logs.push(Self::parse_msg_logs_record(row)?);
         }
-    
+
         Ok(msg_logs)
     }
-
-
 
     pub async fn get_last_deleted_msgs(&self, guild_id: i64) -> Result<Vec<MsgLogs>, Error> {
         let rows = sqlx::query(

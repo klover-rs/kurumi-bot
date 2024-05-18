@@ -23,8 +23,6 @@ pub fn mk_config_file() -> Result<(), std::io::Error> {
 }
 
 pub fn get_config_file() -> PathBuf {
-    mk_config_file().unwrap();
-
     get_config_dir().join("config.toml")
 }
 pub fn mk_config_dir() -> Result<(), std::io::Error> {

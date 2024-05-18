@@ -1,6 +1,5 @@
 use pollster::FutureExt;
 
-
 lazy_static::lazy_static! {
     pub static ref INSTANCE: wgpu::Instance = {
         let instance = wgpu::Instance::new(wgpu::Backends::all());

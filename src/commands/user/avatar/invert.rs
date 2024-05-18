@@ -8,9 +8,8 @@ pub fn apply_invert(
     output_texture: &wgpu::Texture,
     texture_size: &wgpu::Extent3d,
     device: &wgpu::Device,
-    queue: &wgpu::Queue
+    queue: &wgpu::Queue,
 ) -> Result<(), Error> {
-
     queue.write_texture(
         input_texture.as_image_copy(),
         bytemuck::cast_slice(input_image.as_raw()),
@@ -120,7 +119,7 @@ pub fn apply_invert(
     if let Some(output_image) =
         image::ImageBuffer::<image::Rgba<u8>, Vec<u8>>::from_raw(width, height, pixels[..].to_vec())
     {
-        *input_image = output_image; 
+        *input_image = output_image;
     }
 
     Ok(())

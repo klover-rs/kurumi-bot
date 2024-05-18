@@ -1,4 +1,3 @@
-
 use crate::Error;
 
 pub fn apply_grayscale(
@@ -11,7 +10,6 @@ pub fn apply_grayscale(
     device: &wgpu::Device,
     queue: &wgpu::Queue,
 ) -> Result<(), Error> {
-
     queue.write_texture(
         input_texture.as_image_copy(),
         bytemuck::cast_slice(input_image.as_raw()),
@@ -22,7 +20,6 @@ pub fn apply_grayscale(
         },
         *texture_size,
     );
-
 
     let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
         label: Some("Grayscale shader"),

@@ -1,19 +1,17 @@
-use poise::serenity_prelude as serenity;
 use chrono::Utc;
+use poise::serenity_prelude as serenity;
 use std::time::Duration;
 
-use serenity::builder::CreateEmbed;
 use poise::CreateReply;
+use serenity::builder::CreateEmbed;
 
 use crate::{Context, Error};
 
 pub async fn duration_timer(
     ctx: Context<'_>,
     unit: String,
-    duration: String,      
+    duration: String,
 ) -> Result<i64, Error> {
-    
-
     let c_duration = match unit.as_str() {
         "s" => {
             let parts = duration.split(':').collect::<Vec<&str>>();
@@ -98,7 +96,6 @@ pub async fn duration_timer(
 
             match parts.len() {
                 1 => {
-                    
                     let hours = match parts[0].parse::<u64>() {
                         Ok(hours) => hours,
                         Err(e) => {
@@ -176,12 +173,17 @@ pub async fn duration_timer(
             }
         }
         _ => {
-            ctx.send(CreateReply::default().embed(
-                CreateEmbed::default()
-                .title("Error")
-                .description("Invalid unit. Only s, m, and h are supported")
-                .color(0xFF0000)
-            ).ephemeral(true)).await?;
+            ctx.send(
+                CreateReply::default()
+                    .embed(
+                        CreateEmbed::default()
+                            .title("Error")
+                            .description("Invalid unit. Only s, m, and h are supported")
+                            .color(0xFF0000),
+                    )
+                    .ephemeral(true),
+            )
+            .await?;
             return Ok(0);
         }
     };
@@ -193,34 +195,31 @@ pub async fn duration_timer(
     let timestamp = current_time_since_epoch + duration_in_seconds;
 
     Ok(timestamp)
-
-
 }
 
 pub async fn set_timestamp(ctx: Context<'_>, unit: String, duration: String) -> Result<i64, Error> {
-
     let timestamp = duration_timer(ctx, unit, duration).await?;
 
     if timestamp == 0 {
         println!("Empty");
         return Ok(0);
     } else {
-        
-
-
         println!("{}", timestamp);
 
         return Ok(timestamp);
     }
-    
-    
 }
 
 pub async fn send_error_msg(ctx: Context<'_>, error: &str) -> Result<(), Error> {
-    ctx.send(CreateReply::default().embed(
-        CreateEmbed::default().title("Error").description(format!("{}", error)).color(0xFF0000)
-    )).await?;
+    ctx.send(
+        CreateReply::default().embed(
+            CreateEmbed::default()
+                .title("Error")
+                .description(format!("{}", error))
+                .color(0xFF0000),
+        ),
+    )
+    .await?;
 
     Ok(())
 }
-

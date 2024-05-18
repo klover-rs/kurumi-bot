@@ -1,12 +1,12 @@
 use crate::secrets::get_secret;
-use serde::{Deserialize, Serialize};
 use crate::Error;
+use serde::{Deserialize, Serialize};
 use sqlx::{postgres::PgRow, PgPool, Row};
 pub struct Database {
     pool: PgPool,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Configuration {
     pub guild_id: i64,
     pub log_channel: i64,
@@ -14,7 +14,6 @@ pub struct Configuration {
     pub welcome_channel: i64,
     pub xp_channel: i64,
 }
-
 
 impl Configuration {
     pub fn new() -> Self {
@@ -28,33 +27,39 @@ impl Configuration {
     }
 }
 
-
-
-
+use crate::conf::config::CONFIG;
 impl Database {
     pub async fn new() -> Result<Self, sqlx::Error> {
-        let url = format!(
-            "postgresql://postgres:{}@localhost:5432/{}",
-            get_secret("DB_PW"),
-            get_secret("DB_NAME")
-        );
+        let mut config = crate::conf::config::Config::new();
+        if let Ok(c) = CONFIG.lock() {
+            config = c.clone();
+        }
+        let pass = config.db.password.unwrap_or("password".to_string());
+        let user = config.db.user.unwrap_or("postgres".to_string());
+
+        let ip = config.db.ip.unwrap_or("localhost".to_string());
+        let port = config.db.port.unwrap_or(5432);
+        let account = config.user.user;
+        
+        let url = format!("postgresql://{user}:{pass}@{ip}:{port}/{account}",);
         let url = url.as_str();
         let pool = sqlx::postgres::PgPool::connect(url).await?;
         Ok(Self { pool })
     }
 
     pub async fn create_table(&self) -> Result<(), Error> {
-        sqlx::query("CREATE TABLE IF NOT EXISTS configuration (
+        sqlx::query(
+            "CREATE TABLE IF NOT EXISTS configuration (
             guild_id BIGINT PRIMARY KEY,
             log_channel BIGINT DEFAULT 0,
             mod_log_channel BIGINT DEFAULT 0,
             welcome_channel BIGINT DEFAULT 0,
             xp_channel BIGINT DEFAULT 0
-        )")
+        )",
+        )
         .execute(&self.pool)
         .await?;
         Ok(())
-
     }
 
     pub async fn insert(
@@ -138,7 +143,6 @@ impl Database {
         trans.commit().await?;
         Ok(())
     }
-
 }
 
 fn parse_configuration_record(row: PgRow) -> Result<Configuration, Error> {
@@ -150,4 +154,3 @@ fn parse_configuration_record(row: PgRow) -> Result<Configuration, Error> {
         xp_channel: row.try_get(4)?,
     })
 }
-

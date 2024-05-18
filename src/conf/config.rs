@@ -9,27 +9,32 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Mutex;
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct User {
     pub user: String,
+    pub token: String,
+    pub app_id: String,
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct DbConfig {
-    pub db_user: String,
-    pub db_pass: String,
-    pub db_ip: String,
-    pub db_port: u32,
+    pub user: Option<String>,
+    pub password: Option<String>,
+    pub ip: Option<String>,
+    pub port: Option<u32>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ConfigFile {
     pub user: Option<HashMap<String, String>>,
-    pub config: Option<HashMap<String, i64>>,
-    pub database: Option<HashMap<String, String>>,
+
+    pub database: Option<DbConfig>,
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Config {
     pub user: User,
-    pub config: configuration::Configuration,
+
     pub db: DbConfig,
 }
 
@@ -56,36 +61,41 @@ impl Config {
             Err(e) => return Err(e.to_string()),
         };
 
-        if let Some(user) = config.user {
+        if let Some(user_tmp) = config.user {
             let mut user_name = String::new();
             let mut user_pass = String::new();
-            for (k, v) in user {
+            let mut user_token = String::new();
+            let mut user = User::new(user_name);
+            for (k, v) in user_tmp {
                 if k == "user" {
-                    user_name = v
-                } else if k == "password" {
-                    user_pass = v
+                    user.user = v
+                } else if k == "token" {
+                    user.token = v
+                } else if k == "app_id" {
+                    user.app_id = v
                 }
             }
-            cf.user = User::new(user_name);
         }
 
         if let Some(db) = config.database {
             let mut db_name = String::new();
             let mut db_pass = String::new();
             let mut db_ip = String::new();
-            let mut db_port = String::new();
-            for (k, v) in db {
-                if k == "user" {
-                    db_name = v
-                } else if k == "pass" {
-                    db_pass = v
-                } else if k == "ip" {
-                    db_ip = v
-                } else if k == "port" {
-                    db_port = v
-                }
-            }
-            cf.db = DbConfig::new(db_name, db_pass, db_ip, db_port);
+            let mut db_port: u32 = 0;
+
+            // if let Some(name) = db.user {
+            //     db_name = name
+            // }
+            // if let Some(pass) = db.password {
+            //     db_pass = pass
+            // }
+            // if let Some(ip) = db.ip {
+            //     db_ip = ip
+            // }
+            // if let Some(port) = db.port {
+            //     db_port = port
+            // }
+            cf.db = db.clone();
         }
 
         if let Some(config) = config.config {
@@ -109,17 +119,21 @@ impl Config {
 
 impl User {
     pub fn new(user: String) -> Self {
-        Self { user }
+        Self {
+            user,
+            token: String::new(),
+            app_id: String::new(),
+        }
     }
 }
 
 impl DbConfig {
     pub fn new(db_user: String, db_pass: String, db_ip: String, db_port: u32) -> DbConfig {
         DbConfig {
-            db_user,
-            db_pass,
-            db_ip,
-            db_port,
+            user: Some(db_user.to_string()),
+            password: Some(db_pass),
+            ip: Some(db_ip),
+            port: Some(db_port),
         }
     }
 }
@@ -171,9 +185,15 @@ impl ConfigFile {
             ("xp_channel".to_string(), 0),
         ]);
 
+        let db = DbConfig::new(
+            "user".to_string(),
+            "password".to_string(),
+            "localhost".to_string(),
+            0,
+        );
         config.user = Some(user);
         config.config = Some(discord);
-        config.database = Some(db_conf);
+        config.database = Some(db);
         let config = toml::to_string(&config).unwrap();
 
         let dir = utils::get_config_dir();

@@ -92,13 +92,25 @@ fn main() {
     if let Some(command) = cli.command {
         match command {
             Commands::Start => {
+                let file = conf::utils::get_config_file();
+                if std::path::Path::new(&file).exists() {
+                    println!("Config file exists");
+                } else {
+                    println!("Config file does not exist");
+                    println!("Creating config file");
+
+                    if let Err(e) = conf::config::ConfigFile::create() {
+                        panic!("Failed to create config file: {}", e)
+                    }
+                }
+
                 crate::conf::config::global();
 
                 let _ = run();
             }
             Commands::Setup => {
                 let file = conf::utils::get_config_file();
-                if file.exists() {
+                if std::path::Path::new(&file).exists() {
                     println!("Config file exists");
                 } else {
                     println!("Config file does not exist");

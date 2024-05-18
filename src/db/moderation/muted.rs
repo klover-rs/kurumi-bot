@@ -1,7 +1,7 @@
 use crate::secrets::get_secret;
 use crate::Error;
-use sqlx::Row;
 use sqlx::PgPool;
+use sqlx::Row;
 
 pub struct Database {
     pub pool: PgPool,
@@ -60,13 +60,19 @@ impl Database {
             .map(|&role| role.to_string())
             .collect::<Vec<String>>()
             .join(",");
-        
+
         let q = sqlx::query(
             "INSERT INTO muted (uid, guild_id, reason, roles, duration) VALUES ($1, $2, $3, $4, $5)",
           
         );
 
-        q.bind(uid).bind(guild_id).bind(reason).bind(roles_str).bind(duration).execute(&mut *transaction).await?;
+        q.bind(uid)
+            .bind(guild_id)
+            .bind(reason)
+            .bind(roles_str)
+            .bind(duration)
+            .execute(&mut *transaction)
+            .await?;
         transaction.commit().await?;
         Ok(())
     }
@@ -87,7 +93,8 @@ impl Database {
 
     pub async fn read_muted_by_uid(&self, uid: i64) -> Result<Vec<Muted>, Error> {
         let mut muted_records = Vec::new();
-        let rows = sqlx::query("SELECT * FROM muted WHERE uid = $1").bind(uid)
+        let rows = sqlx::query("SELECT * FROM muted WHERE uid = $1")
+            .bind(uid)
             .fetch_all(&self.pool)
             .await?;
 
@@ -111,7 +118,6 @@ impl Database {
 }
 
 fn parse_muted_record(row: sqlx::postgres::PgRow) -> Result<Muted, Error> {
-    
     Ok(Muted {
         uid: row.try_get(0)?,
         guild_id: row.try_get(1)?,
