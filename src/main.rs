@@ -95,9 +95,18 @@ fn main() {
                 let _ = run();
             }
             Commands::Setup => {
-                if let Err(e) = conf::config::ConfigFile::create() {
-                    panic!("Failed to create config file: {}", e)
+                let file = conf::utils::get_config_file();
+                if file.exists() {
+                    println!("Config file exists");
+                } else {
+                    println!("Config file does not exist");
+                    println!("Creating config file");
+
+                    if let Err(e) = conf::config::ConfigFile::create() {
+                        panic!("Failed to create config file: {}", e)
+                    }
                 }
+                crate::conf::config::global();
             }
         }
     }

@@ -1,10 +1,12 @@
 use crate::conf::utils;
 use crate::db::configuration;
+use crate::db::configuration::Configuration;
 use crate::secrets::get_secret;
 use lazy_static::lazy_static;
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::sync::Mutex;
 
 pub struct User {
     pub user: String,
@@ -18,7 +20,7 @@ pub struct DbConfig {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ConfigFile {
     pub user: Option<HashMap<String, String>>,
-    pub config: Option<HashMap<String, i32>>,
+    pub config: Option<HashMap<String, i64>>,
     pub database: Option<HashMap<String, String>>,
 }
 
@@ -29,7 +31,7 @@ pub struct Config {
 }
 
 lazy_static! {
-    pub static ref CONFIG: Config = Config::new();
+    pub static ref CONFIG: Mutex<Config> = Mutex::new(Config::new());
 }
 impl Config {
     pub fn new() -> Self {
@@ -40,13 +42,15 @@ impl Config {
     }
 
     pub fn get() -> Result<Self, String> {
+        let mut cf = Config::new();
         let config = match ConfigFile::get() {
             Ok(config) => config,
             Err(e) => return Err(e.to_string()),
         };
-        let mut user_name = String::new();
-        let mut user_pass = String::new();
+
         if let Some(user) = config.user {
+            let mut user_name = String::new();
+            let mut user_pass = String::new();
             for (k, v) in user {
                 if k == "user" {
                     user_name = v.clone()
@@ -55,11 +59,39 @@ impl Config {
                     user_pass = v.clone()
                 }
             }
+            cf.user = User::new(user_name);
         }
 
-        let mut config = Config::new();
-        config.user.user = user_name;
-        Ok(config)
+        if let Some(db) = config.database {
+            let mut db_name = String::new();
+            let mut db_pass = String::new();
+            for (k, v) in db {
+                if k == "db_user" {
+                    db_name = v.clone()
+                }
+                if k == "db_pass" {
+                    db_pass = v.clone()
+                }
+            }
+            cf.db = DbConfig::new(db_name, db_pass);
+        }
+
+        if let Some(config) = config.config {
+            let mut discord_conf = Configuration::new();
+            for (k, v) in config {
+                match k.as_str() {
+                    "guild_id" => discord_conf.guild_id = v,
+                    "log_channel" => discord_conf.log_channel = v,
+                    "welcome_channel" => discord_conf.welcome_channel = v,
+                    "mod_log_channel" => discord_conf.mod_log_channel = v,
+                    "xp_channel" => discord_conf.xp_channel = v,
+                    _ => {}
+                }
+            }
+            cf.config = discord_conf;
+        }
+
+        Ok(cf)
     }
 }
 
@@ -87,6 +119,23 @@ impl ConfigFile {
             config: None,
             database: None,
         }
+    }
+
+    pub fn to_config(&self) -> Result<Config, String> {
+        let file = utils::get_config_file();
+        let s = match std::fs::read_to_string(file) {
+            Ok(v) => v,
+            Err(e) => return Err(e.to_string()),
+        };
+
+        let config_file = match toml::from_str::<ConfigFile>(&s) {
+            Ok(v) => v,
+            Err(e) => return Err(e.to_string()),
+        };
+
+        let mut config = Config::new();
+
+        Ok(config)
     }
 
     pub fn create() -> Result<(), std::io::Error> {
@@ -120,5 +169,15 @@ impl ConfigFile {
         std::fs::write(file, config)?;
         //
         Ok(())
+    }
+}
+
+pub fn global() {
+    let config = match Config::get() {
+        Ok(v) => v,
+        Err(e) => panic!("{}", e),
+    };
+    if let Ok(mut c) = CONFIG.lock() {
+        *c = config;
     }
 }
