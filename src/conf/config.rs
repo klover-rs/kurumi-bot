@@ -2,9 +2,9 @@ use crate::conf::utils;
 use crate::db::configuration;
 use crate::db::configuration::Configuration;
 use crate::secrets::get_secret;
+use crate::Asset;
 use compact_str::ToCompactString;
 use lazy_static::lazy_static;
-
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Mutex;
@@ -211,6 +211,9 @@ impl ConfigFile {
         }
         let file = utils::get_config_file();
 
+        let cf = Asset::get("config.toml").unwrap();
+        let config = std::str::from_utf8(cf.data.as_ref()).unwrap();
+        println!("{}", config);
         std::fs::write(file, config)?;
         //
         Ok(())

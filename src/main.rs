@@ -23,7 +23,9 @@ use commands::{
     utilities::configure::configure,
     utils::*,
 };
+use conf::config;
 use poise::serenity_prelude as serenity;
+use rust_embed::Embed;
 
 // Types used by all command functions
 type Error = Box<dyn std::error::Error + Send + Sync>;
@@ -43,6 +45,10 @@ impl std::fmt::Debug for PrintError {
 }
 
 impl std::error::Error for PrintError {}
+
+#[derive(Embed)]
+#[folder = "assets"]
+pub struct Asset;
 
 #[allow(unused)]
 pub type Context<'a> = poise::Context<'a, Data, Error>;

@@ -40,7 +40,7 @@ impl Database {
         let ip = config.db.ip.unwrap_or("localhost".to_string());
         let port = config.db.port.unwrap_or(5432);
         let account = config.config.user;
-        
+
         let url = format!("postgresql://{user}:{pass}@{ip}:{port}/{account}",);
         let url = url.as_str();
         let pool = sqlx::postgres::PgPool::connect(url).await?;

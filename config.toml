@@ -1,0 +1,14 @@
+[user]
+user = "user"
+token = "token"
+app_id = "app_id"
+
+[bot]
+name = "name"
+id = "id"
+
+[database]
+user = "user"
+password = "password"
+ip = "localhost"
+port = 0
