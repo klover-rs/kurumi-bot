@@ -92,6 +92,8 @@ fn main() {
     if let Some(command) = cli.command {
         match command {
             Commands::Start => {
+                crate::conf::config::global();
+
                 let _ = run();
             }
             Commands::Setup => {

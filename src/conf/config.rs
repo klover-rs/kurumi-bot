@@ -2,6 +2,7 @@ use crate::conf::utils;
 use crate::db::configuration;
 use crate::db::configuration::Configuration;
 use crate::secrets::get_secret;
+use compact_str::ToCompactString;
 use lazy_static::lazy_static;
 
 use serde::{Deserialize, Serialize};
@@ -15,6 +16,8 @@ pub struct User {
 pub struct DbConfig {
     pub db_user: String,
     pub db_pass: String,
+    pub db_ip: String,
+    pub db_port: u32,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -37,7 +40,12 @@ impl Config {
     pub fn new() -> Self {
         let user = User::new("User".to_string());
         let config = configuration::Configuration::new();
-        let db = DbConfig::new("user".to_string(), "password".to_string());
+        let db = DbConfig::new(
+            "user".to_string(),
+            "password".to_string(),
+            "localhost".to_string(),
+            0,
+        );
         Self { user, config, db }
     }
 
@@ -53,10 +61,9 @@ impl Config {
             let mut user_pass = String::new();
             for (k, v) in user {
                 if k == "user" {
-                    user_name = v.clone()
-                }
-                if k == "password" {
-                    user_pass = v.clone()
+                    user_name = v
+                } else if k == "password" {
+                    user_pass = v
                 }
             }
             cf.user = User::new(user_name);
@@ -65,15 +72,20 @@ impl Config {
         if let Some(db) = config.database {
             let mut db_name = String::new();
             let mut db_pass = String::new();
+            let mut db_ip = String::new();
+            let mut db_port = String::new();
             for (k, v) in db {
-                if k == "db_user" {
-                    db_name = v.clone()
-                }
-                if k == "db_pass" {
-                    db_pass = v.clone()
+                if k == "user" {
+                    db_name = v
+                } else if k == "pass" {
+                    db_pass = v
+                } else if k == "ip" {
+                    db_ip = v
+                } else if k == "port" {
+                    db_port = v
                 }
             }
-            cf.db = DbConfig::new(db_name, db_pass);
+            cf.db = DbConfig::new(db_name, db_pass, db_ip, db_port);
         }
 
         if let Some(config) = config.config {
@@ -102,8 +114,13 @@ impl User {
 }
 
 impl DbConfig {
-    pub fn new(db_user: String, db_pass: String) -> DbConfig {
-        DbConfig { db_user, db_pass }
+    pub fn new(db_user: String, db_pass: String, db_ip: String, db_port: u32) -> DbConfig {
+        DbConfig {
+            db_user,
+            db_pass,
+            db_ip,
+            db_port,
+        }
     }
 }
 impl ConfigFile {

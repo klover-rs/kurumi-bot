@@ -57,7 +57,7 @@ pub async fn upload(
         }
     };
 
-    let filename_parts = file.filename.split(".").collect::<Vec<&str>>();
+    let filename_parts = file.filename.split('.').collect::<Vec<&str>>();
     let extension = *filename_parts.last().unwrap();
 
     let channels_to_check = vec![
