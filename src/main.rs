@@ -27,6 +27,8 @@ use conf::config;
 use poise::serenity_prelude as serenity;
 use rust_embed::Embed;
 
+#[macro_use]
+extern crate log;
 // Types used by all command functions
 type Error = Box<dyn std::error::Error + Send + Sync>;
 
@@ -93,6 +95,13 @@ struct AddArgs {
 }
 
 fn main() {
+    // if utils::is_root() {
+    //     println!("prosses is running as root")
+    // } else {
+    //     println!("prosses is not running as root");
+    //     println!("sudo is required to run this application");
+    // }
+
     let cli = Cli::parse();
 
     if let Some(command) = cli.command {
