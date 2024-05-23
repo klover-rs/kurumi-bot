@@ -39,9 +39,9 @@ impl Database {
 
         let ip = config.db.ip.unwrap_or("localhost".to_string());
         let port = config.db.port.unwrap_or(5432);
-        let account = config.config.user;
-
-        let url = format!("postgresql://{user}:{pass}@{ip}:{port}/{account}",);
+        // let account = config.config.user;
+        let db_name = "kurumi-bot";
+        let url = format!("postgresql://{user}:{pass}@{ip}:{port}/{db_name}",);
         let url = url.as_str();
         let pool = sqlx::postgres::PgPool::connect(url).await?;
         Ok(Self { pool })

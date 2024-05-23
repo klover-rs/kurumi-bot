@@ -10,12 +10,6 @@ use std::collections::HashMap;
 use std::sync::Mutex;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct User {
-    pub user: String,
-    pub token: String,
-    pub app_id: String,
-}
-#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct BotConfig {
     pub name: Option<String>,
     pub id: Option<String>,
@@ -30,14 +24,12 @@ pub struct DbConfig {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ConfigFile {
-    pub config: Option<HashMap<String, String>>,
     pub bot: Option<BotConfig>,
     pub database: Option<DbConfig>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Config {
-    pub config: User,
     pub bot: BotConfig,
     pub db: DbConfig,
 }
@@ -47,8 +39,6 @@ lazy_static! {
 }
 impl Config {
     pub fn new() -> Self {
-        let user = User::new("User".to_string());
-        let config = configuration::Configuration::new();
         let db = DbConfig::new(
             "user".to_string(),
             "password".to_string(),
@@ -59,11 +49,7 @@ impl Config {
             name: Some(String::from("kurumi-bot")),
             id: Some(String::from("bot_id")),
         };
-        Self {
-            config: user,
-            db,
-            bot,
-        }
+        Self { db, bot }
     }
 
     pub fn get() -> Result<Self, String> {
@@ -73,22 +59,6 @@ impl Config {
             Err(e) => return Err(e.to_string()),
         };
 
-        if let Some(user_tmp) = config.config {
-            let mut user_name = String::new();
-            let mut user_pass = String::new();
-            let mut user_token = String::new();
-            let mut user = User::new(user_name);
-            for (k, v) in user_tmp {
-                if k == "user" {
-                    user.user = v
-                } else if k == "token" {
-                    user.token = v
-                } else if k == "app_id" {
-                    user.app_id = v
-                }
-            }
-            cf.config = user;
-        }
         if let Some(bot) = config.bot {
             cf.bot = bot;
         }
@@ -118,16 +88,6 @@ impl Config {
     }
 }
 
-impl User {
-    pub fn new(user: String) -> Self {
-        Self {
-            user,
-            token: String::new(),
-            app_id: String::new(),
-        }
-    }
-}
-
 impl DbConfig {
     pub fn new(db_user: String, db_pass: String, db_ip: String, db_port: u32) -> DbConfig {
         DbConfig {
@@ -147,7 +107,6 @@ impl ConfigFile {
     }
     pub const fn new() -> Self {
         Self {
-            config: None,
             bot: None,
             database: None,
         }
@@ -173,9 +132,6 @@ impl ConfigFile {
     pub fn create() -> Result<(), std::io::Error> {
         let mut config = ConfigFile::new();
 
-        let mut user = HashMap::from([("user".to_string(), "user".to_string())]);
-        user.insert("token".to_string(), "token".to_string());
-        user.insert("app_id".to_string(), "app_id".to_string());
         let db_conf = HashMap::from([
             ("db_user".to_string(), "db_user".to_string()),
             ("db_pass".to_string(), "db_pass".to_string()),
@@ -199,7 +155,7 @@ impl ConfigFile {
             name: Some(String::from("kurumi-bot")),
             id: Some(String::from("bot_id")),
         };
-        config.config = Some(user);
+
         config.bot = Some(bot);
         config.database = Some(db);
         let config = toml::to_string(&config).unwrap();
@@ -213,7 +169,7 @@ impl ConfigFile {
 
         let cf = Asset::get("config.toml").unwrap();
         let config = std::str::from_utf8(cf.data.as_ref()).unwrap();
-        println!("{}", config);
+        // println!("{}", config);
         std::fs::write(file, config)?;
         //
         Ok(())
