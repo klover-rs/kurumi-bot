@@ -8,7 +8,7 @@ publish = false
 anyhow = "1.0.71"
 poise = "0.6.1"
 tracing = "0.1.37"
-tokio = { version="1.28.2", features=["full"] }
+tokio = { version = "1.28.2", features = ["full"] }
 chrono = "0.4.34"
 reqwest = { version = "0.11", features = ["json"] }
 toml = "0.8.10"
@@ -19,7 +19,7 @@ fastrand = "2.0.1"
 discord-presence = "1.0.0"
 env_logger = "0.11.3"
 regex = "1.10.3"
-sqlx = {version = "0.7.4", features = ["postgres", "runtime-tokio-rustls"]}
+sqlx = { version = "0.7.4", features = ["postgres", "runtime-tokio-rustls"] }
 serde = { version = "1.0.197", features = ["derive"] }
 os_info = "3.8.2"
 image = "0.24.0"
@@ -47,9 +47,12 @@ uuid = "1.8.0"
 sea-query = "0.30.7"
 config = "0.14.0"
 rust-embed = "8.4.0"
-procfs = "0.16.0"
 nix = "0.28.0"
 libc = "0.2.155"
+procfs = "0.16.0"
+
+[target.'cfg(windows)'.dependencies]
+tasklist = "0.2.13"
 
 
 [dependencies.nekoslife]
@@ -58,4 +61,3 @@ version = "0.2.1"
 # disable nsfw
 default-features = false
 features = ["default-tls", "sfw"]
-

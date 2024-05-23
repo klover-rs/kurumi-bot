@@ -31,6 +31,14 @@ pub fn is_actice(process: &str) -> bool {
 
 #[cfg(target_os = "windows")]
 pub fn is_actice(process: &str) -> bool {
+    unsafe {
+        let tl = tasklist::Tasklist::new();
+        for i in tl {
+            if i.get_pname.contains(process) {
+                return true;
+            }
+        }
+    }
     false
 }
 
