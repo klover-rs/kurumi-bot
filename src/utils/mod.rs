@@ -3,7 +3,7 @@ pub mod path;
 pub mod sudo;
 pub mod system_usage;
 
-#[cfg(target_os = "linux")]
+#[cfg(all(unix))]
 pub fn is_actice(process: &str) -> bool {
     use procfs::process::{Process, ProcessesIter};
 
@@ -24,10 +24,10 @@ pub fn is_actice(process: &str) -> bool {
     false
 }
 
-#[cfg(target_os = "macos")]
-pub fn is_actice(process: &str) -> bool {
-    false
-}
+// #[cfg(target_os = "macos")]
+// pub fn is_actice(process: &str) -> bool {
+//     false
+// }
 
 #[cfg(target_os = "windows")]
 pub fn is_actice(process: &str) -> bool {
