@@ -13,6 +13,8 @@ use std::sync::Mutex;
 pub struct BotConfig {
     pub name: Option<String>,
     pub id: Option<String>,
+    pub app_id: Option<String>,
+    pub token: Option<String>,
 }
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct DbConfig {
@@ -48,6 +50,8 @@ impl Config {
         let bot = BotConfig {
             name: Some(String::from("kurumi-bot")),
             id: Some(String::from("bot_id")),
+            app_id: None,
+            token: Some(String::from("DISCORD_TOKEN")),
         };
         Self { db, bot }
     }

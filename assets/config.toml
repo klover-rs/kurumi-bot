@@ -2,6 +2,7 @@
 [bot]
 name = "name"
 id = "id"
+token = "token"
 
 [database]
 user = "user"
