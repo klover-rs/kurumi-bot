@@ -2,13 +2,15 @@ use crate::conf::utils;
 use crate::db::configuration;
 use crate::db::configuration::Configuration;
 use crate::secrets::get_secret;
+use crate::utils::path::{canonicalize, expand_path};
 use crate::Asset;
+use clap::Subcommand;
 use compact_str::ToCompactString;
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Mutex;
-
+use std::{fs, fs::File, path::Path};
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct BotConfig {
     pub name: Option<String>,
@@ -39,6 +41,63 @@ pub struct Config {
 lazy_static! {
     pub static ref CONFIG: Mutex<Config> = Mutex::new(Config::new());
 }
+
+lazy_static! {
+    pub static ref KURUMI_CONFIG: Mutex<Config> = Mutex::new(Config::new());
+}
+
+const DIR: &str = "~/.local/share/kurumi/";
+const LOCAL_STATE_DIR: &str = "~/.local/share/kurumi/";
+const LOCAL_STATE_CONFIG: &str = "~/.local/share/kurumi/kurumi.toml";
+const KURUMI_CONFIG_FILE: &str = "/usr/local/etc/kurumi/kurumi.toml";
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct KurumiConfig {
+    pub platform: Platform,
+}
+impl KurumiConfig {
+    pub fn new(platform: Platform) -> Self {
+        Self { platform }
+    }
+    pub fn create_file(&self) -> Result<(), String> {
+        let s = match toml::to_string(&self) {
+            Ok(s) => s,
+            Err(e) => return Err(e.to_string()),
+        };
+
+        if std::path::Path::new(&canonicalize(LOCAL_STATE_DIR)).exists() {
+            fs::write(LOCAL_STATE_CONFIG, s.as_bytes()).unwrap();
+        } else {
+            let path = canonicalize(LOCAL_STATE_DIR);
+            let path = std::path::Path::new(&path);
+            std::fs::create_dir_all(path).unwrap();
+            fs::write(LOCAL_STATE_CONFIG, s.as_bytes()).unwrap();
+        }
+        Ok(())
+    }
+    pub fn from_file() -> Result<Self, String> {
+        if std::path::Path::new(KURUMI_CONFIG_FILE).exists() {
+            let s = match std::fs::read_to_string(KURUMI_CONFIG_FILE) {
+                Ok(s) => s,
+                Err(e) => return Err(e.to_string()),
+            };
+            let config = match toml::from_str::<KurumiConfig>(&s) {
+                Ok(v) => v,
+                Err(e) => return Err(e.to_string()),
+            };
+            return Ok(config);
+        } else {
+            //return Err("kurumi.toml not found".to_string());
+            return Ok(KurumiConfig::new(Platform::Docker));
+        }
+    }
+}
+
+#[derive(Subcommand, Debug, Serialize, Deserialize, Clone)]
+pub enum Platform {
+    Local,
+    Docker,
+}
+
 impl Config {
     pub fn new() -> Self {
         let db = DbConfig::new(

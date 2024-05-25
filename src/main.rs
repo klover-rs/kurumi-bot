@@ -23,9 +23,11 @@ use commands::{
     utilities::configure::configure,
     utils::*,
 };
-use conf::config;
+use conf::config::{self, Platform};
 use poise::serenity_prelude as serenity;
 use rust_embed::Embed;
+
+use crate::conf::config::KurumiConfig;
 
 #[macro_use]
 extern crate log;
@@ -84,7 +86,10 @@ pub struct Cli {
 
 #[derive(Subcommand, Debug)]
 enum Commands {
-    Setup,
+    Setup {
+        #[command(subcommand)]
+        platform: Platform,
+    },
     Start,
 }
 
@@ -123,7 +128,7 @@ fn main() {
 
                 let _ = run();
             }
-            Commands::Setup => {
+            Commands::Setup { platform } => {
                 let file = conf::utils::get_config_file();
                 if std::path::Path::new(&file).exists() {
                     println!("Config file exists");
@@ -134,8 +139,19 @@ fn main() {
                     if let Err(e) = conf::config::ConfigFile::create() {
                         panic!("Failed to create config file: {}", e)
                     }
+                    crate::conf::config::global();
+
+                    match platform {
+                        Platform::Local => {
+                            let _ = cli::setup::setup_local();
+                            KurumiConfig::new(platform).create_file();
+                        }
+                        Platform::Docker => {
+                            let _ = cli::setup::setup_docker();
+                            KurumiConfig::new(platform).create_file();
+                        }
+                    }
                 }
-                crate::conf::config::global();
             }
         }
     }

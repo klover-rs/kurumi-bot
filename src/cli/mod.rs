@@ -1,5 +1,5 @@
 use clap::Parser;
-
+pub mod setup;
 /// Simple program to greet a person
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
