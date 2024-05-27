@@ -1,5 +1,4 @@
-use systemstat::{System, Platform, saturating_sub_bytes};
-
+use systemstat::{saturating_sub_bytes, Platform, System};
 
 pub struct MemoryUsage {
     pub used_mem: u64,

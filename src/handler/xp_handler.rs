@@ -1,38 +1,39 @@
 use crate::Error;
 
+use crate::db::configuration::Database as ConfigDatabase;
+use crate::db::user::xp::Database;
+use poise::serenity_prelude as serenity;
 use poise::serenity_prelude::GuildId;
 use poise::serenity_prelude::Member;
 use poise::serenity_prelude::RoleId;
 use poise::serenity_prelude::UserId;
-use poise::serenity_prelude as serenity;
-use crate::db::user::xp::Database;
-use crate::db::configuration::Database as ConfigDatabase;
 use serenity::ChannelId;
-use serenity::CreateMessage;
 use serenity::CreateEmbed;
+use serenity::CreateMessage;
 
-pub async fn handle_xp(
-    message: &serenity::Message,
-    ctx: &serenity::Context
-) -> Result<(), Error> {
-
+pub async fn handle_xp(message: &serenity::Message, ctx: &serenity::Context) -> Result<(), Error> {
     if message.author.bot {
         return Ok(());
     }
 
     let guild_id = match message.guild_id {
         Some(guild) => guild,
-        None => return Ok(())
+        None => return Ok(()),
     };
     let author = message.author.id;
     let message_len = message.content.len();
-    
+
     xp_logic(ctx, author.try_into()?, guild_id.try_into()?, message_len).await?;
 
     Ok(())
-} 
+}
 
-async fn xp_logic(ctx: &serenity::Context,uid: i64, guild_id: i64, message_len: usize) -> Result<(), Error> {
+async fn xp_logic(
+    ctx: &serenity::Context,
+    uid: i64,
+    guild_id: i64,
+    message_len: usize,
+) -> Result<(), Error> {
     let db = Database::new().await?;
     let config_db = ConfigDatabase::new().await?;
 
@@ -47,27 +48,40 @@ async fn xp_logic(ctx: &serenity::Context,uid: i64, guild_id: i64, message_len: 
                 return Ok(());
             }
             config
-        },
+        }
         Err(e) => {
             println!("error: {:?}", e);
             return Ok(());
         }
     };
 
-    
-
     let xp_record = db.read(uid, guild_id).await?;
     if xp_record.is_empty() {
         let (xp, _, xp_in_this_rank) = calculate_xp(0, 0, 0, message_len);
         db.insert(uid, guild_id, xp, xp_in_this_rank).await?;
     } else {
-        let (xp, rank, xp_in_this_rank) = calculate_xp(xp_record[0].xp, xp_record[0].rank, xp_record[0].xp_in_this_rank, message_len);
+        let (xp, rank, xp_in_this_rank) = calculate_xp(
+            xp_record[0].xp,
+            xp_record[0].rank,
+            xp_record[0].xp_in_this_rank,
+            message_len,
+        );
 
         if rank > xp_record[0].rank {
             let xp_channel = ChannelId::from(config[0].xp_channel as u64);
-            let lvl_up_embed = CreateEmbed::default().title("Rank up!").description(format!("You are now level: {}", rank)).color(0x00FF00);
+            let lvl_up_embed = CreateEmbed::default()
+                .title("Rank up!")
+                .description(format!("You are now level: {}", rank))
+                .color(0x00FF00);
 
-            xp_channel.send_message(ctx, CreateMessage::default().content(format!("<@{}>", xp_record[0].uid)).embed(lvl_up_embed)).await?;
+            xp_channel
+                .send_message(
+                    ctx,
+                    CreateMessage::default()
+                        .content(format!("<@{}>", xp_record[0].uid))
+                        .embed(lvl_up_embed),
+                )
+                .await?;
 
             let level_roles_str = db.read_level_roles(guild_id).await?;
 
@@ -76,13 +90,17 @@ async fn xp_logic(ctx: &serenity::Context,uid: i64, guild_id: i64, message_len: 
             for (ordering_number, role_id) in level_roles {
                 if ordering_number == rank as i32 {
                     let role = RoleId::from(role_id as u64);
-                    let user = get_member(ctx, GuildId::from(guild_id as u64), UserId::from(uid as u64)).await.unwrap();
+                    let user = get_member(
+                        ctx,
+                        GuildId::from(guild_id as u64),
+                        UserId::from(uid as u64),
+                    )
+                    .await
+                    .unwrap();
 
                     user.add_role(ctx, role).await?;
                 }
             }
-
-
         }
 
         println!("XP: {}", xp);
@@ -111,7 +129,6 @@ fn deserialize_roles_str(roles_str: &str) -> Result<Vec<(i32, i64)>, Error> {
         let role_id = parts[1].parse::<i64>();
 
         roles.push((ordering_number?, role_id?));
-
     }
 
     Ok(roles)
@@ -133,9 +150,8 @@ fn calculate_xp(
     current_xp: i64,
     current_rank: i64,
     current_xp_in_rank: i64,
-    message_len: usize
+    message_len: usize,
 ) -> (i64, i64, i64) {
-
     let mut user_xp = UserXp {
         rank: current_rank,
         msg_len: message_len as i64,
@@ -153,7 +169,6 @@ fn calculate_xp(
         user_xp.xp += user_xp.xp_per_msg * (user_xp.msg_len / 100)
     }
 
-    
     user_xp.xp_in_this_rank += user_xp.xp_per_msg;
 
     if user_xp.xp_in_this_rank >= user_xp.required_xp_for_next_level {
@@ -167,10 +182,10 @@ fn calculate_xp(
         }
     }
 
-    user_xp.remaining_xp_to_next_level = user_xp.required_xp_for_next_level - user_xp.xp_in_this_rank;
+    user_xp.remaining_xp_to_next_level =
+        user_xp.required_xp_for_next_level - user_xp.xp_in_this_rank;
 
     println!("user_xp: {:?}", user_xp);
-    
+
     (user_xp.xp, user_xp.rank, user_xp.xp_in_this_rank)
-    
 }

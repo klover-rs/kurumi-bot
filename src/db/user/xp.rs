@@ -25,33 +25,42 @@ impl Database {
         let url = url.as_str();
         let pool = sqlx::postgres::PgPool::connect(url).await?;
         Ok(Self { pool })
-
     }
 
     pub async fn create_table(&self) -> Result<(), Error> {
-        sqlx::query("CREATE TABLE IF NOT EXISTS xp (
+        sqlx::query(
+            "CREATE TABLE IF NOT EXISTS xp (
             guild_id BIGINT PRIMARY KEY,
             uid BIGINT,
             xp BIGINT,
             rank BIGINT DEFAULT 0,
             xp_in_this_rank BIGINT
-        )")
+        )",
+        )
         .execute(&self.pool)
         .await?;
         Ok(())
     }
 
     pub async fn create_table_level_roles(&self) -> Result<(), Error> {
-        sqlx::query("CREATE TABLE IF NOT EXISTS level_roles (
+        sqlx::query(
+            "CREATE TABLE IF NOT EXISTS level_roles (
             guild_id BIGINT PRIMARY KEY,
             lvl_roles TEXT
-        )")
+        )",
+        )
         .execute(&self.pool)
         .await?;
         Ok(())
     }
 
-    pub async fn insert(&self, uid: i64, guild_id: i64, xp: i64, xp_in_this_rank: i64) -> Result<(), Error> {
+    pub async fn insert(
+        &self,
+        uid: i64,
+        guild_id: i64,
+        xp: i64,
+        xp_in_this_rank: i64,
+    ) -> Result<(), Error> {
         let mut trans = self.pool.begin().await?;
 
         sqlx::query("INSERT INTO xp (guild_id, uid, xp, xp_in_this_rank) VALUES ($1, $2, $3, $4)")
@@ -81,11 +90,18 @@ impl Database {
         Ok(())
     }
 
-    pub async fn update(&self, uid: i64, guild_id: i64, xp: i64, xp_in_this_rank: i64, rank: i64) -> Result<(), Error> {
+    pub async fn update(
+        &self,
+        uid: i64,
+        guild_id: i64,
+        xp: i64,
+        xp_in_this_rank: i64,
+        rank: i64,
+    ) -> Result<(), Error> {
         let mut transaction = self.pool.begin().await?;
-        
+
         let query = "UPDATE xp SET xp = $1, xp_in_this_rank = $2, rank = $3 WHERE guild_id = $4 AND uid = $5";
-        
+
         sqlx::query(query)
             .bind(xp)
             .bind(xp_in_this_rank)
@@ -94,9 +110,9 @@ impl Database {
             .bind(uid)
             .execute(&mut *transaction)
             .await?;
-        
+
         transaction.commit().await?;
-        
+
         Ok(())
     }
 
@@ -113,7 +129,7 @@ impl Database {
 
         Ok(())
     }
-    
+
     pub async fn read(&self, uid: i64, guild_id: i64) -> Result<Vec<Xp>, Error> {
         let mut xp_record = Vec::new();
 
@@ -152,7 +168,7 @@ impl Database {
         for row in rows {
             xp_record.push(parse_xp_record(row)?);
         }
-            
+
         Ok(xp_record)
     }
 

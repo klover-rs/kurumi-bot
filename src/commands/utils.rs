@@ -10,8 +10,10 @@ pub async fn ping(ctx: Context<'_>) -> Result<(), Error> {
     let msg = ctx.say("Calculating ping...").await?;
     let end_time = Instant::now();
 
-    msg.edit(ctx, CreateReply::default()
-        .content(format!("{} ms", (end_time - start_time).as_millis()))
-    ).await?;
+    msg.edit(
+        ctx,
+        CreateReply::default().content(format!("{} ms", (end_time - start_time).as_millis())),
+    )
+    .await?;
     Ok(())
 }

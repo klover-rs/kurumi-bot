@@ -1,2 +1,2 @@
-pub mod muted;
 pub mod logs;
+pub mod muted;

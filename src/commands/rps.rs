@@ -58,14 +58,17 @@ pub async fn rock_paper_scissors(
         }
     }
 
-    ctx.send(CreateReply::default().embed(
-        CreateEmbed::default()
-        .title("RPS Game")
-        .description(format!(
-            "- You entered {:?}.\n- Kurumi chose: {}\n\n**{}**",
-            choice, computer_choice, result
-        ))
-        .color(0xa33a0d)
-    )).await?;
+    ctx.send(
+        CreateReply::default().embed(
+            CreateEmbed::default()
+                .title("RPS Game")
+                .description(format!(
+                    "- You entered {:?}.\n- Kurumi chose: {}\n\n**{}**",
+                    choice, computer_choice, result
+                ))
+                .color(0xa33a0d),
+        ),
+    )
+    .await?;
     Ok(())
 }

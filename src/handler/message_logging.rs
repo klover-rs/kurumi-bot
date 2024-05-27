@@ -7,7 +7,6 @@ use crate::{db::moderation::logs::DatabaseMsgLogs, secrets::get_secret, Data, Er
 
 use crate::db::configuration::Database as DatabaseConfig;
 
-
 use chrono::{DateTime, Utc};
 use serenity::builder::CreateEmbed;
 use serenity::builder::CreateEmbedFooter;
@@ -75,7 +74,7 @@ pub async fn deleted_messages_handler(
                 println!("action is not involved with a guild (likely a dm)");
                 return Ok(());
             }
-        }
+        },
         Err(e) => {
             println!("error: {:?}", e);
             return Ok(());
@@ -91,13 +90,12 @@ pub async fn deleted_messages_handler(
                 return Ok(());
             }
             config
-        },
+        }
         Err(e) => {
             println!("error: {:?}", e);
             return Ok(());
         }
     };
-
 
     println!(
         "deleted message: {}\n--------------------------------",
@@ -177,8 +175,6 @@ pub async fn edited_messages_handler(
     new_message: &str,
     ctx: &serenity::Context,
 ) -> Result<(), Error> {
-
-
     let guild_id = match channel_id.to_channel(ctx.http()).await {
         Ok(channel) => match channel.guild() {
             Some(guild_channel) => guild_channel.guild_id.to_string().parse::<i64>().unwrap(),
@@ -186,14 +182,12 @@ pub async fn edited_messages_handler(
                 println!("action is not involved with a guild (likely a dm)");
                 return Ok(());
             }
-        }
+        },
         Err(e) => {
             println!("error: {:?}", e);
             return Ok(());
         }
     };
-
-
 
     let config_db = DatabaseConfig::new().await?;
     config_db.create_table().await?;
@@ -204,7 +198,7 @@ pub async fn edited_messages_handler(
                 return Ok(());
             }
             config
-        },
+        }
         Err(e) => {
             println!("error: {:?}", e);
             return Ok(());
@@ -228,7 +222,6 @@ pub async fn edited_messages_handler(
     let log_channel = config[0].log_channel;
 
     let channel_id = ChannelId::from(log_channel as u64);
-    
 
     let current_timestamp: DateTime<Utc> = Utc::now();
 

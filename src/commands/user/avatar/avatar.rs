@@ -1,14 +1,14 @@
+use crate::commands::user::avatar::{
+    gpu_init::DEVICE_QUEUE, grayscale::apply_grayscale, invert::apply_invert, sepia::apply_sepia,
+};
 use crate::PrintError;
 use crate::{Context, Error};
 use std::io::Cursor;
-use crate::commands::user::avatar::{grayscale::apply_grayscale, invert::apply_invert, sepia::apply_sepia, gpu_init::DEVICE_QUEUE};
 
-
-use reqwest::Client;
 use poise::serenity_prelude::{self as serenity, CreateAttachment};
+use reqwest::Client;
 
 use serenity::builder::CreateEmbed;
-
 
 use poise::CreateReply;
 
@@ -16,10 +16,8 @@ use poise::CreateReply;
 enum ImageFormat {
     Png,
     Jpeg,
-    Webp
+    Webp,
 }
-
-
 
 #[poise::command(prefix_command, slash_command)]
 pub async fn avatar(
@@ -27,77 +25,79 @@ pub async fn avatar(
     #[description = "the user you want to get the avatar from"] user: Option<serenity::User>,
     #[description = "the format you want to get the avatar in"] format: Option<ImageFormat>,
     #[description = "do you want to apply gray scale?"] grayscale: Option<bool>,
-    #[description = "do you want to invert the images colours?"] invert: Option<bool>, 
+    #[description = "do you want to invert the images colours?"] invert: Option<bool>,
     #[description = "do you want to apply a sepia tone to your image?"] sepia_tone: Option<bool>,
 ) -> Result<(), Error> {
-
     match user {
-        Some(user) => {
-            match user.avatar_url() {
-                Some(url) => {
-                    ctx.defer().await?;
-                    if url.contains(".gif") {
-                        ctx.send(
+        Some(user) => match user.avatar_url() {
+            Some(url) => {
+                ctx.defer().await?;
+                if url.contains(".gif") {
+                    ctx.send(
                             CreateReply::default().embed(CreateEmbed::default().description("this user has a gif avatar, if you applied filters, please note this is not possible with gifs.").image(url).color(serenity::colours::roles::DARK_RED)),
                         ).await?;
-                        return Ok(());
-                    }
-                    let bytes = download_avatar(ctx, &url).await?;
-                    match format {
-                        Some(format) => {
-                            use_filters(ctx, bytes, Some(format), grayscale, invert, sepia_tone).await?;
-                        }
-                        None => {
-                            use_filters(ctx, bytes, None, grayscale, invert, sepia_tone).await?;
-                        }
-                    }
-                }
-                None => {
-                    ctx.send(
-                        CreateReply::default().embed(
-                            CreateEmbed::default()
-                                .title("Error")
-                                .description("This user doesn't have an avatar")
-                                .color(serenity::colours::roles::DARK_RED),
-                        ),
-                    )
-                    .await?;
                     return Ok(());
                 }
-            }
-        }
-        None => {
-            match ctx.author().avatar_url() {
-                Some(url) => {
-                    ctx.defer().await?;
-                    let bytes = download_avatar(ctx, &url).await?;
-                    match format {
-                        Some(format) => {
-                            use_filters(ctx, bytes, Some(format), grayscale, invert, sepia_tone).await?;
-                        }
-                        None => {
-                            use_filters(ctx, bytes, None, grayscale, invert, sepia_tone).await?;
-                        }
+                let bytes = download_avatar(ctx, &url).await?;
+                match format {
+                    Some(format) => {
+                        use_filters(ctx, bytes, Some(format), grayscale, invert, sepia_tone)
+                            .await?;
                     }
-                    
-                }
-                None => {
-                    ctx.send(CreateReply::default().content("No avatar found")).await?;
+                    None => {
+                        use_filters(ctx, bytes, None, grayscale, invert, sepia_tone).await?;
+                    }
                 }
             }
-        }
+            None => {
+                ctx.send(
+                    CreateReply::default().embed(
+                        CreateEmbed::default()
+                            .title("Error")
+                            .description("This user doesn't have an avatar")
+                            .color(serenity::colours::roles::DARK_RED),
+                    ),
+                )
+                .await?;
+                return Ok(());
+            }
+        },
+        None => match ctx.author().avatar_url() {
+            Some(url) => {
+                ctx.defer().await?;
+                let bytes = download_avatar(ctx, &url).await?;
+                match format {
+                    Some(format) => {
+                        use_filters(ctx, bytes, Some(format), grayscale, invert, sepia_tone)
+                            .await?;
+                    }
+                    None => {
+                        use_filters(ctx, bytes, None, grayscale, invert, sepia_tone).await?;
+                    }
+                }
+            }
+            None => {
+                ctx.send(CreateReply::default().content("No avatar found"))
+                    .await?;
+            }
+        },
     }
 
     Ok(())
 }
 
-async fn use_filters(ctx: Context<'_>, bytes: Vec<u8>, image_format: Option<ImageFormat>, grayscale: Option<bool>, invert: Option<bool>, sepia_tone: Option<bool>) -> Result<(), Error> {
-
+async fn use_filters(
+    ctx: Context<'_>,
+    bytes: Vec<u8>,
+    image_format: Option<ImageFormat>,
+    grayscale: Option<bool>,
+    invert: Option<bool>,
+    sepia_tone: Option<bool>,
+) -> Result<(), Error> {
     let start = std::time::Instant::now();
 
     let device = &DEVICE_QUEUE.0;
     let queue = &DEVICE_QUEUE.1;
-
 
     let mut img = match image::load_from_memory(&bytes) {
         Ok(img) => img.to_rgba8(),
@@ -123,7 +123,7 @@ async fn use_filters(ctx: Context<'_>, bytes: Vec<u8>, image_format: Option<Imag
         depth_or_array_layers: 1,
     };
 
-    let input_texture = device.create_texture(&wgpu::TextureDescriptor { 
+    let input_texture = device.create_texture(&wgpu::TextureDescriptor {
         label: Some("input texture"),
         size: texture_size,
         mip_level_count: 1,
@@ -147,48 +147,69 @@ async fn use_filters(ctx: Context<'_>, bytes: Vec<u8>, image_format: Option<Imag
 
     match grayscale {
         Some(true) => {
-            apply_grayscale(&mut img, width, height, &input_texture, &output_texture, &texture_size, &device, &queue)?;     
+            apply_grayscale(
+                &mut img,
+                width,
+                height,
+                &input_texture,
+                &output_texture,
+                &texture_size,
+                &device,
+                &queue,
+            )?;
         }
-        _ => {
-
-        }
+        _ => {}
     }
 
     match invert {
         Some(true) => {
-            apply_invert(&mut img, width, height, &input_texture, &output_texture, &texture_size, &device, &queue)?;
+            apply_invert(
+                &mut img,
+                width,
+                height,
+                &input_texture,
+                &output_texture,
+                &texture_size,
+                &device,
+                &queue,
+            )?;
             used_encoder.push_str("gpu acceleration (unoptimized)");
         }
-        _ => {
-        }
+        _ => {}
     }
 
     match sepia_tone {
         Some(true) => {
-            apply_sepia(&mut img, width, height, &input_texture, &output_texture, &texture_size, &device, &queue)?;
+            apply_sepia(
+                &mut img,
+                width,
+                height,
+                &input_texture,
+                &output_texture,
+                &texture_size,
+                &device,
+                &queue,
+            )?;
             used_encoder.push_str("gpu acceleration (unoptimized)");
         }
-        _ => {
-        }
+        _ => {}
     }
 
-    
-    
     let image_format_str = match image_format {
         Some(format) => match format {
             ImageFormat::Png => "png",
             ImageFormat::Jpeg => "jpeg",
-            ImageFormat::Webp => "webp"
-        }
-        _ => "png"
+            ImageFormat::Webp => "webp",
+        },
+        _ => "png",
     };
     let image_format = match image_format {
         Some(format) => match format {
             ImageFormat::Png => image::ImageOutputFormat::Png,
             ImageFormat::Jpeg => image::ImageOutputFormat::Jpeg(100),
-            ImageFormat::Webp => image::ImageOutputFormat::WebP
-        }
-        _ => image::ImageOutputFormat::Png
+            ImageFormat::Webp => image::ImageOutputFormat::WebP,
+        },
+        _ => image::ImageOutputFormat::Png,
     };
 
     let mut output_buffer = Cursor::new(Vec::new());
@@ -196,8 +217,16 @@ async fn use_filters(ctx: Context<'_>, bytes: Vec<u8>, image_format: Option<Imag
     img.write_to(&mut output_buffer, image_format).unwrap();
 
     let elapsed = start.elapsed();
-    
-    ctx.send(CreateReply::default().content(format!("processed in: {}ms", elapsed.as_millis())).attachment(CreateAttachment::bytes(output_buffer.into_inner(), format!("avatar.{}", image_format_str)))).await?;
+
+    ctx.send(
+        CreateReply::default()
+            .content(format!("processed in: {}ms", elapsed.as_millis()))
+            .attachment(CreateAttachment::bytes(
+                output_buffer.into_inner(),
+                format!("avatar.{}", image_format_str),
+            )),
+    )
+    .await?;
 
     Ok(())
 }
@@ -237,28 +266,38 @@ async fn use_filters(ctx: Context<'_>, bytes: Vec<u8>, image_format: Option<Imag
     }
 
     *img = DynamicImage::ImageRgb8(sepia_tone_img);
-    
+
 }
 
 fn apply_blur(img: &mut DynamicImage, radius: f32) {
     *img = img.blur(radius);
 }*/
 
-
 async fn download_avatar(ctx: Context<'_>, url: &str) -> Result<Vec<u8>, Error> {
     let client = Client::new();
     let response = client.get(url).send().await?;
-  
-    if !response.status().is_success() {
-        ctx.send(CreateReply::default().embed(
-            CreateEmbed::default().title("Error").description(format!("Failed to download avatar\nstatus: {}", response.status())).color(0xFF0000)
-        )).await?;
 
-        return Err(Box::new(PrintError(format!("Error: {}", response.status()))));
+    if !response.status().is_success() {
+        ctx.send(
+            CreateReply::default().embed(
+                CreateEmbed::default()
+                    .title("Error")
+                    .description(format!(
+                        "Failed to download avatar\nstatus: {}",
+                        response.status()
+                    ))
+                    .color(0xFF0000),
+            ),
+        )
+        .await?;
+
+        return Err(Box::new(PrintError(format!(
+            "Error: {}",
+            response.status()
+        ))));
     }
-  
+
     let bytes = response.bytes().await?;
-  
+
     Ok(bytes.to_vec())
-  }
-  
+}

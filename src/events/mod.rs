@@ -1,2 +1,2 @@
-pub mod timer;
 pub mod moderation;
+pub mod timer;

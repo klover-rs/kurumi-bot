@@ -1,0 +1,11 @@
+#bot config
+[bot]
+name = "name"
+id = "id"
+token = "token"
+
+[database]
+user = "user"
+password = "password"
+ip = "localhost"
+port = 0

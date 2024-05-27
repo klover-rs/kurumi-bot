@@ -1,6 +1,6 @@
-use poise::serenity_prelude as serenity;
-
+mod cli;
 mod commands;
+mod conf;
 mod db;
 mod download_docs;
 mod events;
@@ -8,8 +8,7 @@ mod handler;
 mod secrets;
 mod utils;
 
-
-
+use clap::{Args, Parser, Subcommand};
 use commands::{
     help::*,
     info::*,
@@ -20,21 +19,20 @@ use commands::{
     },
     rps::*,
     timer::*,
-    user::{
-        avatar::avatar,
-        neko_commands::neko,
-        snipe::snipe,
-        math::math::math,
-        rank::rank,
-    },
+    user::{avatar::avatar, math::math::math, neko_commands::neko, rank::rank, snipe::snipe},
     utilities::configure::configure,
     utils::*,
 };
+use conf::config::{self, Platform};
+use poise::serenity_prelude as serenity;
+use rust_embed::Embed;
 
+use crate::conf::config::KurumiConfig;
 
+#[macro_use]
+extern crate log;
 // Types used by all command functions
 type Error = Box<dyn std::error::Error + Send + Sync>;
-
 
 pub struct PrintError(String);
 
@@ -51,6 +49,10 @@ impl std::fmt::Debug for PrintError {
 }
 
 impl std::error::Error for PrintError {}
+
+#[derive(Embed)]
+#[folder = "assets"]
+pub struct Asset;
 
 #[allow(unused)]
 pub type Context<'a> = poise::Context<'a, Data, Error>;
@@ -75,16 +77,94 @@ async fn on_error(error: poise::FrameworkError<'_, Data, Error>) {
     }
 }
 
-#[tokio::main]
-async fn main() {
-    
+#[derive(Parser, Debug)]
+#[command(version, about, long_about = None)]
+pub struct Cli {
+    #[command(subcommand)]
+    command: Option<Commands>,
+}
 
+#[derive(Subcommand, Debug)]
+enum Commands {
+    Setup {
+        #[command(subcommand)]
+        platform: Platform,
+    },
+    Start,
+}
+
+#[derive(Args, Debug)]
+struct AddArgs {
+    #[arg(short, long)]
+    name: Option<String>,
+}
+
+fn main() {
+    // if utils::is_root() {
+    //     println!("prosses is running as root")
+    // } else {
+    //     println!("prosses is not running as root");
+    //     println!("sudo is required to run this application");
+    // }
+
+    let cli = Cli::parse();
+
+    if let Some(command) = cli.command {
+        match command {
+            Commands::Start => {
+                let file = conf::utils::get_config_file();
+                if std::path::Path::new(&file).exists() {
+                    println!("Config file exists");
+                } else {
+                    println!("Config file does not exist");
+                    println!("Creating config file");
+
+                    if let Err(e) = conf::config::ConfigFile::create() {
+                        panic!("Failed to create config file: {}", e)
+                    }
+                }
+
+                crate::conf::config::global();
+
+                let _ = run();
+            }
+            Commands::Setup { platform } => {
+                let file = conf::utils::get_config_file();
+                if std::path::Path::new(&file).exists() {
+                    println!("Config file exists");
+                } else {
+                    println!("Config file does not exist");
+                    println!("Creating config file");
+
+                    if let Err(e) = conf::config::ConfigFile::create() {
+                        panic!("Failed to create config file: {}", e)
+                    }
+                    crate::conf::config::global();
+
+                    match platform {
+                        Platform::Local => {
+                            let _ = cli::setup::setup_local();
+                            KurumiConfig::new(platform).create_file();
+                        }
+                        Platform::Docker => {
+                            let _ = cli::setup::setup_docker();
+                            KurumiConfig::new(platform).create_file();
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[tokio::main]
+async fn run() -> Result<(), String> {
     env_logger::init();
 
-
     let token = secrets::get_secret("DISCORD_TOKEN");
-    let intents =
-        serenity::GatewayIntents::non_privileged() | serenity::GatewayIntents::MESSAGE_CONTENT | serenity::GatewayIntents::GUILD_MEMBERS;
+    let intents = serenity::GatewayIntents::non_privileged()
+        | serenity::GatewayIntents::MESSAGE_CONTENT
+        | serenity::GatewayIntents::GUILD_MEMBERS;
 
     let framework = poise::Framework::builder()
         .setup(move |_ctx, _ready, _framework| {
@@ -134,6 +214,7 @@ async fn main() {
         .await;
 
     client.unwrap().start().await.unwrap();
+    Ok(())
 }
 
 async fn event_handler(
@@ -154,10 +235,9 @@ async fn event_handler(
                 "Message from {}: {}\n--------------------------------",
                 new_message.author.name, new_message.content
             );
-            handler::message_logging::handle_messages(new_message, _framework)
-                .await?;
+            handler::message_logging::handle_messages(new_message, _framework).await?;
             handler::xp_handler::handle_xp(new_message, ctx).await?;
-            handler::messages_reactions::message_reactions(new_message, &ctx).await?;
+            handler::messages_reactions::message_reactions(new_message, ctx).await?;
         }
         serenity::FullEvent::MessageDelete {
             channel_id,
@@ -169,7 +249,7 @@ async fn event_handler(
                 deleted_message_id,
                 guild_id.unwrap()
             );
-            handler::message_logging::deleted_messages_handler(channel_id, deleted_message_id, &ctx)
+            handler::message_logging::deleted_messages_handler(channel_id, deleted_message_id, ctx)
                 .await?;
         }
         serenity::FullEvent::MessageUpdate {
@@ -186,8 +266,13 @@ async fn event_handler(
 
             match edited_msg {
                 Some(content) => {
-                    handler::message_logging::edited_messages_handler(&event.channel_id,&event.id, &content, ctx)
-                        .await?
+                    handler::message_logging::edited_messages_handler(
+                        &event.channel_id,
+                        &event.id,
+                        &content,
+                        ctx,
+                    )
+                    .await?
                 }
                 None => {
                     println!("edited content is None\n--------------------------------");
@@ -195,7 +280,10 @@ async fn event_handler(
             }
         }
         serenity::FullEvent::GuildMemberAddition { new_member } => {
-            println!("new member: {}\n--------------------------------", new_member.user.name);
+            println!(
+                "new member: {}\n--------------------------------",
+                new_member.user.name
+            );
             handler::member_join::member_join(new_member, ctx).await?;
         }
         _ => {}

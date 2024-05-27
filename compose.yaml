@@ -1,0 +1,19 @@
+services:
+  db:
+    image: postgres
+    restart: always
+    container_name: kurumi-db
+    environment:
+      POSTGRES_USER: {{ user }}
+      POSTGRES_PASSWORD: {{ password }}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  adminer:
+    image: adminer
+    restart: always
+    ports:
+      - 8080:8080
+
+volumes:
+  pgdata:

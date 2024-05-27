@@ -1,12 +1,10 @@
 use crate::db::moderation::muted::Database;
 use chrono::Utc;
-use serde_json::json;
-use reqwest::header::{HeaderMap, HeaderValue, CONTENT_TYPE, AUTHORIZATION};
+use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION, CONTENT_TYPE};
 use reqwest::Client;
-use tokio::task;
+use serde_json::json;
 use std::sync::Arc;
-
-
+use tokio::task;
 
 use crate::secrets::get_secret;
 
@@ -23,35 +21,34 @@ pub async fn check_mutes() {
 
             match database.read_muted().await {
                 Ok(data) => {
-                    
-
                     for muted_record in data {
                         if current_timestamp >= muted_record.duration {
                             println!("MUTED EXPIRED: {}", muted_record.uid);
                             database.delete(muted_record.uid).await.unwrap();
                             let roles_vec: Vec<&str> = muted_record.roles.split(',').collect();
-                            add_roles(roles_vec, muted_record.uid, muted_record.guild_id).await.unwrap();
+                            add_roles(roles_vec, muted_record.uid, muted_record.guild_id)
+                                .await
+                                .unwrap();
                         }
                     }
                 }
                 Err(err) => {
                     println!("Error: {:?}", err);
-                
                 }
             }
 
             tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
-
         }
     });
-
 }
-
 
 async fn add_roles(roles: Vec<&str>, uid: i64, guild_id: i64) -> Result<(), reqwest::Error> {
     let client = Client::new();
 
-    let url = format!("https://discord.com/api/v9/guilds/{}/members/{}", guild_id, uid);
+    let url = format!(
+        "https://discord.com/api/v9/guilds/{}/members/{}",
+        guild_id, uid
+    );
 
     let mut headers = HeaderMap::new();
     headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
@@ -67,14 +64,12 @@ async fn add_roles(roles: Vec<&str>, uid: i64, guild_id: i64) -> Result<(), reqw
     });
 
     let response = client
-    .patch(&url)
-    .headers(headers)
-    .json(&body)
-    .send()
-    .await?;
+        .patch(&url)
+        .headers(headers)
+        .json(&body)
+        .send()
+        .await?;
 
     println!("Response: {:?}", response);
     Ok(())
-
-
 }
