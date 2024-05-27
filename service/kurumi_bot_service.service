@@ -1,0 +1,14 @@
+[Unit]
+Description=kurumi-bot Daemon
+
+[Service]
+Type=simple
+User=
+#Group=
+ExecStart=/usr/local/bin/kurumi-bot start
+Restart=on-failure
+StandardOutput=file:%h/log_file
+
+[Install]
+WantedBy=default.target
+
